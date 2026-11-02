@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>patch-ear</title>
+<style>
+:root{--bg:#f6f6f4;--panel:#fff;--ink:#1c1c1a;--mute:#6b6b66;--line:#dcdcd6;--accent:#2f5d50;--accent-ink:#fff;--bar:#e6e6e0;--ok:#2f7d4f;--warn:#a86a00;--bad:#b3392f;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+@media(prefers-color-scheme:dark){:root{--bg:#161615;--panel:#202020;--ink:#ecece8;--mute:#9a9a94;--line:#34342f;--accent:#6fb59f;--accent-ink:#0f1a16;--bar:#33332e;--ok:#6fcf97;--warn:#e0a84a;--bad:#ef7b70}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:20px;align-items:baseline;flex-wrap:wrap}
+header h1{margin:0;font-size:17px}
+header .cfg{color:var(--mute);font:12px var(--mono)}
+nav{display:flex;gap:4px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{border:0;background:none;color:var(--mute);padding:10px 14px;font:inherit;cursor:pointer;border-bottom:2px solid transparent}
+nav button.on{color:var(--ink);border-color:var(--accent)}
+main{max-width:1100px;margin:0 auto;padding:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+h2{font-size:15px;margin:0 0 10px}
+.mute{color:var(--mute)}.mono{font-family:var(--mono);font-size:12px;word-break:break-all}
+button.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit;cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger:hover{border-color:var(--bad);color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+label{display:block;font-size:12px;color:var(--mute);margin:10px 0 3px}
+.chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;border:1px solid var(--line);color:var(--mute);margin-right:4px}
+.chip.warn{color:var(--warn);border-color:var(--warn)}.chip.ok{color:var(--ok);border-color:var(--ok)}.chip.bad{color:var(--bad);border-color:var(--bad)}
+.bar{height:10px;background:var(--bar);border-radius:5px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.bar.big{height:16px;border-radius:8px}
+pre.log{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:240px;overflow:auto;font:12px var(--mono);margin:8px 0 0;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;color:var(--mute);font-weight:500;white-space:nowrap}
+.scroll{overflow-x:auto}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:18px;width:min(560px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.pick{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:8px 0}
+.pick div{padding:5px 10px;cursor:pointer;border-bottom:1px solid var(--line)}
+.pick div:hover{background:var(--bar)}
+.mini{width:70px;display:inline-block;vertical-align:middle}
+.help{font-size:12px;color:var(--mute);margin-top:4px}
+.empty{color:var(--mute);padding:20px;text-align:center}
+.err{color:var(--bad)}
+</style>
+</head>
+<body>
+<header><h1>patch-ear</h1><input id="gsearch" type="search" placeholder="Search patches…  ( / )" autocomplete="off" style="max-width:340px"><span class="cfg" id="cfgpath"></span></header>
+<nav id="tabs"></nav>
+<main id="view"></main>
+<dialog id="dlg"></dialog>
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "value") e.value = v;
+    else if (v === true) e.setAttribute(k, "");
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) e.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return e;
+}
+/* replaceChildren that flattens arrays and drops null/false (the native one stringifies them) */
+function fill(el, ...kids) {
+  el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false).map(k => (k instanceof Node ? k : document.createTextNode(String(k)))));
+}
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts.body ? { method: opts.method || "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(opts.body) } : opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const S = { tab: ["analysis", "libraries", "plugins", "catalogue"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "analysis", types: [], cfg: null, cfgPath: "", status: { job: { running: false }, catalogued: {} }, sig: "", cat: { category: "", q: "", sort: "grit", dir: "desc" }, force: false, msg: "" };
+const TYPE = id => S.types.find(t => t.id === id);
+const CATEGORIES = ["bass", "lead", "pad", "keys", "texture", "drums", "perc", "fx", "vocal", "other"];
+const fmtTime = s => { s = Math.max(0, Math.round(s)); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; };
+
+async function loadConfig() {
+  const r = await api("/api/config");
+  S.cfg = r.config; S.cfgPath = r.path;
+  $("#cfgpath").textContent = r.path + (r.exists ? "" : "  (not saved yet)");
+}
+async function saveConfig(next) {
+  const r = await api("/api/config", { method: "PUT", body: next });
+  S.cfg = r.config; S.cfgPath = S.cfgPath; await loadConfig(); render();
+}
+
+/* ---------- tabs ---------- */
+const TABS = [["analysis", "Analysis"], ["libraries", "Libraries"], ["plugins", "Plugins"], ["catalogue", "Catalogue"]];
+function renderTabs() {
+  const nav = $("#tabs"); nav.replaceChildren(...TABS.map(([id, label]) =>
+    h("button", { class: S.tab === id ? "on" : "", onclick: () => { S.tab = id; history.replaceState(null, "", "#" + id); render(); } }, label)));
+}
+function render() {
+  renderTabs();
+  const v = $("#view");
+  const fn = { analysis: viewAnalysis, libraries: () => viewSources(false), plugins: () => viewSources(true), catalogue: viewCatalogue }[S.tab];
+  v.replaceChildren(fn());
+  if (S.tab === "catalogue") loadCatalogue();
+}
+
+/* ---------- sources (libraries / plugins) ---------- */
+function sourceProgress(name) {
+  const j = S.status.job, p = j.sources && j.sources[name];
+  if (!p) return null;
+  const pct = p.total ? Math.round(100 * p.done / p.total) : 100;
+  return h("div", { style: "margin-top:8px" }, h("div", { class: "bar" }, h("i", { style: `width:${pct}%` })),
+    h("div", { class: "help" }, `${p.state} · ${p.done}/${p.total} · ${p.analysed} new, ${p.unchanged} unchanged, ${p.failed} failed`));
+}
+function viewSources(plugins) {
+  const list = S.cfg.source.map((s, i) => [s, i]).filter(([s]) => !!(TYPE(s.type) || {}).plugin === plugins);
+  const busy = S.status.job.running;
+  const box = h("div", {},
+    h("div", { class: "row", style: "margin-bottom:12px" },
+      h("div", { class: "grow mute" }, plugins
+        ? "Plugins and their preset folders. Settings are stored now; rendering presets for analysis is not built yet."
+        : "Sample libraries. Pick the type that matches how the library is laid out, as in patch-press."),
+      h("button", { class: "btn primary", onclick: () => editSource(null, plugins) }, plugins ? "Add plugin" : "Add library")));
+  if (!list.length) box.append(h("div", { class: "card empty" }, plugins ? "No plugins configured." : "No libraries configured yet."));
+  for (const [s, i] of list) {
+    const t = TYPE(s.type) || { label: s.type, analyzable: false };
+    const n = S.status.catalogued[s.name];
+    box.append(h("div", { class: "card" },
+      h("div", { class: "row" },
+        h("div", { class: "grow" },
+          h("div", {}, h("strong", {}, s.name), " ", h("span", { class: "chip" }, t.label), h("span", { class: "chip" }, s.category || "category from tags"),
+            t.analyzable ? null : h("span", { class: "chip warn" }, "analyser not available yet"),
+            n != null ? h("span", { class: "chip ok" }, `${n} in catalogue`) : null),
+          s.plugin ? h("div", { class: "mono mute" }, "plugin: " + s.plugin) : null,
+          h("div", { class: "mono mute" }, (plugins ? "presets: " : "") + s.path),
+          s.only_list ? h("div", { class: "mono mute" }, "only: " + s.only_list) : null,
+          s.ref_midi != null && t.ref_midi ? h("div", { class: "help" }, `reference note: MIDI ${s.ref_midi}`) : null),
+        h("button", { class: "btn", disabled: busy || !t.analyzable, onclick: () => startAnalysis(s.name) }, "Analyse"),
+        h("button", { class: "btn", onclick: () => editSource(i, plugins) }, "Edit"),
+        h("button", { class: "btn danger", onclick: async () => { if (confirm(`Remove "${s.name}" from the config? (Its catalogue rows stay until the next analysis.)`)) { const c = structuredClone(S.cfg); c.source.splice(i, 1); await saveConfig(c); } } }, "Remove")),
+      sourceProgress(s.name)));
+  }
+  return box;
+}
+
+function editSource(index, plugins) {
+  const cur = index == null ? { name: "", type: plugins ? "clap" : "multisample", path: "", category: "bass", ref_midi: 36, plugin: "" } : structuredClone(S.cfg.source[index]);
+  const types = S.types.filter(t => !!t.plugin === plugins);
+  const dlg = $("#dlg");
+  const f = {
+    name: h("input", { value: cur.name, placeholder: "e.g. essence-bass" }),
+    type: h("select", {}, types.map(t => h("option", { value: t.id }, t.label))),
+    path: h("input", { value: cur.path, placeholder: plugins ? "/path/to/presets" : "/path/to/library" }),
+    plugin: h("input", { value: cur.plugin || "", placeholder: "/home/you/.clap/u-he/Diva.clap" }),
+    category: h("input", { value: cur.category, list: "cats" }),
+    ref: h("input", { type: "number", min: 0, max: 127, value: cur.ref_midi ?? 36 }),
+    list: h("input", { value: cur.only_list || "", placeholder: "optional: text file, one patch path per line" }),
+  };
+  f.type.value = cur.type;
+  const help = h("div", { class: "help" }), refBox = h("div", {}, h("label", {}, "Reference note (MIDI number; 36 = C1, 48 = C2, 60 = C4)"), f.ref,
+    h("div", { class: "help" }, "The sample nearest this note represents each preset."));
+  const insp = h("div", { class: "help" }), err = h("div", { class: "err" });
+  const listBox = h("div", {}, h("label", {}, "Only these patches (optional list file)"), f.list,
+    h("div", { class: "help" }, "Restrict the library to the patch paths in this file, e.g. what actually ships on the device."));
+  const catHelp = h("label", {});
+  const sync = () => {
+    const t = TYPE(f.type.value); help.textContent = t.help; refBox.style.display = t.ref_midi ? "" : "none";
+    listBox.style.display = t.has_list ? "" : "none";
+    catHelp.textContent = t.auto_category ? "Category (leave empty: taken from the library's own tags)" : "Category (ranked against others in the same category)";
+  };
+  f.type.addEventListener("change", sync); sync();
+  const browse = (input, title) => pickDir(input.value, title, p => { input.value = p; });
+  fill(dlg,
+    h("h2", {}, (index == null ? "Add " : "Edit ") + (plugins ? "plugin" : "library")),
+    h("label", {}, "Name (unique)"), f.name,
+    h("label", {}, "Type"), f.type, help,
+    plugins ? [h("label", {}, "Plugin file (.clap) or bundle (.vst3)"), h("div", { class: "row" }, h("div", { class: "grow" }, f.plugin), h("button", { class: "btn", onclick: () => browse(f.plugin, "Choose the plugin") }, "Browse"))] : null,
+    h("label", {}, plugins ? "Preset folder" : "Library folder"),
+    h("div", { class: "row" }, h("div", { class: "grow" }, f.path), h("button", { class: "btn", onclick: () => browse(f.path, "Choose the folder") }, "Browse"),
+      plugins ? null : h("button", { class: "btn", onclick: async () => {
+        insp.textContent = "Inspecting…";
+        try {
+          const r = await api("/api/inspect?path=" + encodeURIComponent(f.path.value));
+          fill(insp, `${r.wavs} wav files in ${r.folders_with_wavs} folder(s). `,
+            r.suggestion ? [`Looks like: ${(TYPE(r.suggestion) || {}).label || r.suggestion} (${r.reason}). It is a guess, you know the library. `,
+              h("button", { class: "btn", onclick: () => { f.type.value = r.suggestion; sync(); } }, "Use this type")] : r.reason,
+            h("div", { class: "mono" }, r.sample.join("  ·  ")));
+        } catch (e) { insp.textContent = e.message; }
+      } }, "Inspect")),
+    insp,
+    catHelp, f.category,
+    h("datalist", { id: "cats" }, CATEGORIES.map(c => h("option", { value: c }))),
+    refBox, listBox, err,
+    h("div", { class: "row", style: "margin-top:16px;justify-content:flex-end" },
+      h("button", { class: "btn", onclick: () => dlg.close() }, "Cancel"),
+      h("button", { class: "btn primary", onclick: async () => {
+        const item = { name: f.name.value.trim(), type: f.type.value, path: f.path.value.trim(), category: f.category.value.trim(), ref_midi: Number(f.ref.value) };
+        if (f.list.value.trim()) item.only_list = f.list.value.trim();
+        if (plugins) item.plugin = f.plugin.value.trim();
+        const c = structuredClone(S.cfg);
+        if (index == null) c.source.push(item); else c.source[index] = item;
+        try { await saveConfig(c); dlg.close(); } catch (e) { err.textContent = e.message; }
+      } }, "Save")));
+  dlg.showModal();
+}
+
+/* folder picker (server-side listing, since a browser cannot give real paths) */
+function pickDir(start, title, onPick) {
+  const dlg = $("#dlg"), prev = [...dlg.childNodes];
+  const list = h("div", { class: "pick" }), head = h("div", { class: "mono" }), info = h("div", { class: "help" });
+  const back = () => fill(dlg, prev);
+  let here = "";
+  async function go(p) {
+    try {
+      const r = await api("/api/fs?path=" + encodeURIComponent(p || ""));
+      here = r.path; head.textContent = r.path; info.textContent = `${r.wavs_here} wav file(s) directly in this folder`;
+      fill(list,
+        r.parent ? h("div", { onclick: () => go(r.parent) }, "↑ ..") : null,
+        r.files.map(x => h("div", { onclick: () => { onPick(x.path); back(); } }, "◆ " + x.name + "  (select)")),
+        r.dirs.map(d => h("div", { onclick: () => go(d.path), ondblclick: () => { } }, (/\.vst3$/i.test(d.name) ? "◆ " : "📁 ") + d.name)),
+        r.dirs.length || r.files.length ? null : h("div", { class: "mute" }, "(no subfolders)"));
+    } catch (e) { info.textContent = e.message; }
+  }
+  fill(dlg, h("h2", {}, title), head, list, info,
+    h("div", { class: "row", style: "justify-content:flex-end;margin-top:10px" },
+      h("button", { class: "btn", onclick: back }, "Back"),
+      h("button", { class: "btn primary", onclick: () => { onPick(here); back(); } }, "Use this folder")));
+  go(start);
+}
+
+/* ---------- analysis ---------- */
+async function startAnalysis(only) {
+  try { await api("/api/analyze", { body: { source: only || null, force: S.force } }); S.tab = "analysis"; await poll(); render(); }
+  catch (e) { alert(e.message); }
+}
+function viewAnalysis() {
+  const j = S.status.job, pct = j.total ? Math.round(100 * j.done / j.total) : (j.running ? 0 : 0);
+  const elapsed = j.started_at ? ((j.finished_at || Date.now() / 1000) - j.started_at) : 0;
+  const eta = j.running && j.done > 0 ? (j.total - j.done) / (j.done / elapsed) : null;
+  const hasSources = S.cfg.source.length > 0;
+  const wrap = h("div", {});
+  wrap.append(h("div", { class: "card" },
+    h("h2", {}, "Analysis"),
+    h("div", { class: "row" },
+      h("button", { class: "btn primary", disabled: j.running || !hasSources, onclick: () => startAnalysis(null) }, "Analyse all sources"),
+      h("label", { style: "margin:0;display:flex;gap:6px;align-items:center;color:inherit" },
+        h("input", { type: "checkbox", style: "width:auto", checked: S.force, onchange: e => { S.force = e.target.checked; } }), "re-analyse unchanged files"),
+      h("button", { class: "btn", disabled: !j.running, onclick: () => api("/api/cancel", { body: {} }) }, "Cancel"),
+      h("span", { class: "mute" }, "Analysis is incremental; unchanged files are skipped.")),
+    !hasSources ? h("div", { class: "help" }, "Add a library first (Libraries tab).") : null));
+  if (j.started_at || j.running) {
+    wrap.append(h("div", { class: "card" },
+      h("div", { class: "row" },
+        h("strong", {}, j.running ? "Running" : j.error ? "Failed" : j.cancelled ? "Cancelled" : "Finished"),
+        h("span", { class: "mute" }, `${j.done || 0} / ${j.total || 0} patches · ${pct}%`),
+        h("span", { class: "mute" }, `${fmtTime(elapsed)} elapsed` + (eta != null ? ` · ~${fmtTime(eta)} left` : ""))),
+      h("div", { class: "bar big", style: "margin:10px 0" }, h("i", { style: `width:${pct}%` })),
+      j.running && j.current ? h("div", { class: "mono mute" }, j.current) : null,
+      j.error ? h("div", { class: "err" }, j.error) : null,
+      Object.entries(j.sources || {}).map(([n, p]) => h("div", { style: "margin-top:10px" },
+        h("div", { class: "row" }, h("strong", {}, n), h("span", { class: "chip" }, p.state),
+          h("span", { class: "mute" }, `${p.done}/${p.total} · ${p.analysed} new · ${p.unchanged} unchanged · ${p.failed} failed`)),
+        h("div", { class: "bar" }, h("i", { style: `width:${p.total ? Math.round(100 * p.done / p.total) : 100}%` })))),
+      Object.entries(j.skipped_sources || {}).map(([n, why]) => h("div", { class: "help" }, `${n}: skipped, ${why}`)),
+      h("pre", { class: "log" }, (j.log || []).join("\n"))));
+  }
+  const maxs = h("input", { type: "number", step: "0.5", min: "1", value: S.cfg.analysis.max_seconds, style: "max-width:120px" });
+  const catp = h("input", { value: S.cfg.catalogue.path });
+  const note = h("span", { class: "mute" });
+  wrap.append(h("div", { class: "card" }, h("h2", {}, "Settings"),
+    h("label", {}, "Catalogue file (relative paths are resolved from the config file's folder)"), catp,
+    h("label", {}, "Seconds of each file to analyse"), maxs,
+    h("div", { class: "row", style: "margin-top:12px" },
+      h("button", { class: "btn", onclick: async () => {
+        const c = structuredClone(S.cfg); c.catalogue.path = catp.value.trim(); c.analysis.max_seconds = Number(maxs.value);
+        try { await saveConfig(c); } catch (e) { note.textContent = e.message; }
+      } }, "Save settings"), note),
+    h("div", { class: "help" }, "Claude Desktop needs PATCH_EAR_CONFIG=" + S.cfgPath + " in its MCP server config.")));
+  return wrap;
+}
+
+/* ---------- catalogue ---------- */
+let loadSeq = 0, audioEl = null, playingId = null;
+async function loadCatalogue() {
+  const seq = ++loadSeq, c = S.cat;
+  const qs = new URLSearchParams({ category: c.category, q: c.q, sort: c.sort, dir: c.dir, limit: 200 });
+  try {
+    const [cats, data] = await Promise.all([api("/api/categories"), api("/api/catalogue?" + qs)]);
+    if (seq !== loadSeq || S.tab !== "catalogue") return;
+    const sel = $("#catsel"); if (sel) sel.replaceChildren(h("option", { value: "" }, "all categories"), ...Object.entries(cats.categories).map(([k, n]) => h("option", { value: k }, `${k} (${n})`)));
+    if (sel) sel.value = c.category;
+    const ss = $("#sortsel"); if (ss && !ss.options.length) { ss.replaceChildren(...cats.sortable.map(k => h("option", { value: k }, k))); ss.value = c.sort; }
+    $("#rows").replaceChildren(...data.rows.map(r => rowEl(r)));
+    $("#count").textContent = `${data.rows.length} of ${data.total}`;
+  } catch (e) { const el = $("#count"); if (el) el.textContent = e.message; }
+}
+function meter(v) { return h("span", { class: "bar mini" }, h("i", { style: `width:${v}%` })); }
+function rowEl(r) {
+  const f = r.features, p = r.percentiles_in_category;
+  return h("tr", {},
+    h("td", {}, h("button", { class: "btn", onclick: e => play(r.id, e.target) }, playingId === r.id ? "■" : "▶")),
+    h("td", { title: `centroid ${Math.round(f.centroid_hz)} Hz · <150 Hz ${Math.round(100 * f.low_ratio)}% · >2 kHz ${(100 * f.hi_ratio).toFixed(1)}% · crest ${f.crest_db.toFixed(1)} dB · side/mid ${Math.round(f.side_mid_db)} dB · attack ${f.attack_s.toFixed(2)} s · decay ${f.decay_s.toFixed(1)} s · pitch ${f.f0_hz ? Math.round(f.f0_hz) + " Hz (clarity " + f.pitch_clarity.toFixed(2) + ")" : "none"} · inharmonic ${f.inharmonic_ratio.toFixed(2)} · rough ${f.roughness.toFixed(2)} · movement ${f.timbre_movement.toFixed(2)}` },
+      h("div", {}, r.name), h("div", { class: "mono mute" }, r.source + (r.n_samples > 1 ? ` · ${r.measured_as} (${r.n_samples})` : ""))),
+    h("td", {}, r.category, r.tags.length > 1 ? h("div", { class: "help" }, r.tags.join(", ")) : null),
+    h("td", { title: "percentile within category: " + p.grit }, meter(p.grit), " ", p.grit),
+    h("td", { title: "percentile within category: " + p.weight }, meter(p.weight), " ", p.weight),
+    h("td", {}, Math.round(f.centroid_hz) + " Hz"),
+    h("td", {}, f.duration_s.toFixed(1) + " s"),
+    h("td", {}, r.labels.map(l => h("span", { class: "chip" }, l))));
+}
+function play(id, btn) {
+  if (!audioEl) audioEl = new Audio();
+  if (playingId === id) { audioEl.pause(); playingId = null; btn.textContent = "▶"; return; }
+  audioEl.src = "/api/audio?id=" + encodeURIComponent(id); audioEl.play().catch(() => { }); playingId = id;
+  document.querySelectorAll("#rows button").forEach(b => { b.textContent = "▶"; }); btn.textContent = "■";
+  audioEl.onended = () => { playingId = null; btn.textContent = "▶"; };
+}
+let qTimer = null;
+function viewCatalogue() {
+  const c = S.cat;
+  return h("div", {},
+    h("div", { class: "card row" },
+      h("select", { id: "catsel", style: "max-width:200px", onchange: e => { c.category = e.target.value; loadCatalogue(); } }, h("option", { value: "" }, "all categories")),
+      h("span", { class: "mute" }, "sort"),
+      h("select", { id: "sortsel", style: "max-width:160px", onchange: e => { c.sort = e.target.value; loadCatalogue(); } }),
+      h("select", { style: "max-width:110px", onchange: e => { c.dir = e.target.value; loadCatalogue(); } },
+        h("option", { value: "desc", selected: c.dir === "desc" }, "high → low"), h("option", { value: "asc", selected: c.dir === "asc" }, "low → high")),
+      h("span", { class: "mute", id: "count" })),
+    h("div", { class: "card scroll" }, h("table", {},
+      h("thead", {}, h("tr", {}, ["", "patch", "category", "grit", "weight", "centroid", "length", "labels"].map(x => h("th", {}, x)))),
+      h("tbody", { id: "rows" }))),
+    h("div", { class: "help" }, "Grit and weight are percentile scores within a category. They are unvalidated; trust your ears over these numbers."));
+}
+
+/* ---------- polling ---------- */
+async function poll() {
+  try {
+    const s = await api("/api/status");
+    const sig = JSON.stringify(s.job) + JSON.stringify(s.catalogued);
+    const wasRunning = S.status.job.running;
+    S.status = s;
+    if (sig !== S.sig) {
+      S.sig = sig;
+      if (S.tab === "analysis" || S.tab === "libraries" || S.tab === "plugins") {
+        const ae = document.activeElement;
+        if (!(ae && ae.tagName === "INPUT" && S.tab === "analysis" && ae.type !== "checkbox")) render();
+      }
+    }
+  } catch (e) { /* server restarting */ }
+}
+function wireSearch() {
+  const box = $("#gsearch");
+  box.value = S.cat.q;
+  box.addEventListener("input", () => {
+    S.cat.q = box.value;
+    if (S.tab !== "catalogue") { S.tab = "catalogue"; history.replaceState(null, "", "#catalogue"); render(); }
+    clearTimeout(qTimer); qTimer = setTimeout(loadCatalogue, 200);
+  });
+  document.addEventListener("keydown", e => {
+    const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName);
+    if (e.key === "/" && !typing) { e.preventDefault(); box.focus(); box.select(); }
+    else if (e.key === "Escape" && document.activeElement === box) { box.value = ""; S.cat.q = ""; box.blur(); loadCatalogue(); }
+  });
+}
+(async function init() {
+  wireSearch();
+  S.types = await api("/api/types");
+  await loadConfig(); await poll(); render();
+  setInterval(poll, 800);
+})();
+</script>
+</body>
+</html>

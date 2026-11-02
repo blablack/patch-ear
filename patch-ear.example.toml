@@ -1,0 +1,23 @@
+# Copy to patch-ear.toml, or just run `patch-ear serve` and use the web UI (it writes this file).
+
+[catalogue]
+path = "catalogue.db"   # relative paths resolve from this file's folder
+
+[analysis]
+max_seconds = 8.0       # only the first N seconds of each file are analysed
+
+# type: multisample | filename | oneshots | drumkit | kit | wavetable   (analysable)
+#       bitwig | clap | vst3                                            (stored, analyser not built yet)
+[[source]]
+name = "essence-bass"
+type = "filename"       # <patch>-<midi>_<note>.wav in one folder
+path = "/path/to/Bass Oneshots/Samples"
+category = "bass"       # percentiles are ranked within a category
+ref_midi = 36           # multisample/filename: sample nearest this note represents the preset
+
+# [[source]]
+# name = "diva-bass"
+# type = "clap"
+# plugin = "~/.clap/u-he/Diva.clap"
+# path = "~/.u-he/Diva/Presets/Diva/1 BASS"
+# category = "bass"

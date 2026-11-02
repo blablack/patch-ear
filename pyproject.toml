@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "patch-ear"
+version = "0.1.0"
+description = "Measure the character of presets and samples, catalogue it, and let Claude query it over MCP"
+requires-python = ">=3.14"
+dependencies = [
+    "numpy",
+    "librosa",
+    "soundfile",
+    "tqdm",
+    "mcp",
+    "tomli-w>=1.2.0",
+    "starlette>=1.10.0",
+    "uvicorn>=0.54.0",
+    "scipy>=1.18.1",
+]
+
+[project.scripts]
+patch-ear = "patch_ear.cli:main"
+patch-ear-mcp = "patch_ear.mcp_server:main"
+
+[project.optional-dependencies]
+# Reading patch-press scan configs (type "deluge"): library/Kontakt/Bitwig/wavetable audio and CLAP/VST3 renders.
+# Install with `uv sync --extra press`. Same editable sibling checkout that prepare-sd-cards uses.
+press = ["patch-press"]
+
+[tool.uv.sources]
+patch-press = { path = "../patch-press", editable = true }
+
+[dependency-groups]
+dev = ["ruff"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/patch_ear"]
+
+[tool.ruff]
+line-length = 128

@@ -1,0 +1,491 @@
+# generated from prepare-sd-cards/bento.py BENTO_PATCHES; re-run tools/export_bento_list.py after editing it
+UserPatches/OneShots/808 - 01 Clean Kit 01
+UserPatches/OneShots/808 - 02 Clean Kit 02
+UserPatches/OneShots/808 - 03 Cleancut Kit
+UserPatches/OneShots/808 - 04 MPC Dirt Kit
+UserPatches/OneShots/808 - 05 Heavy Sat Kit
+UserPatches/OneShots/808 - 06 Subby Toms Kit
+UserPatches/OneShots/808 - 07 Tight & Crisp Kit
+UserPatches/OneShots/808 - 08 Distorted Kit
+UserPatches/OneShots/808 - 09 Toms N Color
+UserPatches/OneShots/808 - 10 Quirky Kit
+UserPatches/OneShots/808 - 11 Fortune Kit
+UserPatches/OneShots/909 - 01 Clean Kit
+UserPatches/OneShots/909 - 03 Dirt Kit
+UserPatches/OneShots/909 - 05 Friendly Kit 2
+UserPatches/OneShots/909 - 02 Color Kit
+UserPatches/OneShots/909 - 04 Friendly Kit
+UserPatches/OneShots/909 - 06 Lo Kit
+UserPatches/OneShots/Lindrum - 01 OG Clean Kit
+UserPatches/OneShots/Lindrum - 02 Clean N Lean Kit
+UserPatches/OneShots/Lindrum - 03 OG Color Kit
+UserPatches/OneShots/Lindrum - 04 Hibrow Kit
+UserPatches/OneShots/Lindrum - 05 Colored Harmonix Kit
+UserPatches/OneShots/Lindrum - 06 Tite N Lite Kit
+UserPatches/OneShots/Lindrum - 07 Lowbrow Kit
+UserPatches/OneShots/MPC3000 - 02 Heavy Impact
+UserPatches/OneShots/MPC3000 - 04 Crazy Eights
+UserPatches/OneShots/MPC3000 - 20 Lo Fi
+UserPatches/SampInst/KD - White Siren
+UserPatches/OneShots/MPC3000 - 01 Subs N Metal
+UserPatches/OneShots/MPC3000 - 03 Rude Cymbals
+UserPatches/OneShots/MPC3000 - 05 Rhythm Box
+UserPatches/OneShots/MPC3000 - 07 Real Crunchy
+UserPatches/OneShots/MPC3000 - 09 Analog Bounce
+UserPatches/OneShots/MPC3000 - 12 Hot Trash
+UserPatches/OneShots/MPC3000 - 14 Space Caddy
+UserPatches/OneShots/MPC3000 - 16 Retro
+UserPatches/OneShots/MPC3000 - 18 Lo Artifact
+UserPatches/OneShots/Perkons - 01 Tight Impact Kit
+UserPatches/OneShots/Perkons - 03 Alien Kit
+UserPatches/OneShots/Perkons - 05 Wild Kit
+UserPatches/OneShots/Perkons - 07 Perky Kit
+UserPatches/OneShots/Perkons - 02 Tech Kit
+UserPatches/OneShots/Perkons - 04 Soft Glitch Kit
+UserPatches/OneShots/Perkons - 06 Fluid Kit
+UserPatches/OneShots/Perkons - 08 Crushin It Kit
+UserPatches/OneShots/Pulsar - 01 Bounce Kit
+UserPatches/OneShots/Pulsar - 03 Space Time Kit
+UserPatches/OneShots/Pulsar - 05 Battlestar Kit
+UserPatches/OneShots/Pulsar - 07 Brass Knuckle Kit
+UserPatches/OneShots/Pulsar - 02 Cycle Kit
+UserPatches/OneShots/Pulsar - 04 Supernova Kit
+UserPatches/OneShots/Pulsar - 06 Hells Bells Kit
+UserPatches/OneShots/Pulsar - 08 Rocket Launch Kit
+UserPatches/OneShots/VDM - 01 606 Standard Kit
+UserPatches/OneShots/VDM - 03 808 Standard Kit
+UserPatches/OneShots/VDM - 05 909 Standard Kit
+UserPatches/OneShots/VDM - 07 527 Kit
+UserPatches/OneShots/VDM - 09 LM1 Standard Kit
+UserPatches/OneShots/VDM - 11 Lindrum Kit
+UserPatches/OneShots/VDM - 13 DMX FX Kit
+UserPatches/OneShots/VDM - 15 Sub Nouveau Kit
+UserPatches/OneShots/VDM - 17 Modern Heat Kit
+UserPatches/OneShots/VDM - 19 Galactic Kit
+UserPatches/OneShots/VDM - 21 Dr Dust Kit
+UserPatches/OneShots/VDM - 23 Mini Ace Kit
+UserPatches/OneShots/VD - 08 Big Break Kit
+UserPatches/OneShots/VD - 01 Classic Multi Kit
+UserPatches/OneShots/VD - 03 Old Skool Indie Kit
+UserPatches/OneShots/VD - 05 Clerb Kit
+UserPatches/OneShots/VD - 07 Cosmic Rock Kit
+UserPatches/OneShots/VD - 13 Pitch Mod Kit
+UserPatches/OneShots/VD - 15 Cavern Kit
+UserPatches/OneShots/VD - 17 Degraded Perc Kit
+UserPatches/OneShots/VD - 10 Hi Linny Kit
+UserPatches/SampInst/Diva - HS Bass Nine
+UserPatches/SampInst/Diva - HS Bonebreaker
+UserPatches/SampInst/Diva - HS Cable
+UserPatches/SampInst/Diva - HS Chord Bass - minor
+UserPatches/SampInst/Diva - HS Contrabass Teeth
+UserPatches/SampInst/Diva - HS Enceladus
+UserPatches/SampInst/Diva - HS Force Majeur mono
+UserPatches/SampInst/Diva - HS Gravel
+UserPatches/SampInst/Diva - HS Mentasmic
+UserPatches/SampInst/Diva - HS Two-Pole Torus
+UserPatches/SampInst/Diva - MK Bass FM Growl
+UserPatches/SampInst/Diva - MK Bass Fingered Saw
+UserPatches/SampInst/Diva - MK Bass Steam
+UserPatches/SampInst/Diva - MK Bass TriSaw
+UserPatches/SampInst/Diva - MK Bass Upright MW
+UserPatches/SampInst/Diva - TUC Breakdancer
+UserPatches/SampInst/Diva - TUC Funk Buzzes
+UserPatches/SampInst/Diva - TUC Rubber Funk
+UserPatches/SampInst/Diva - TUC Square Echo
+UserPatches/SampInst/Diva - TUC Wallower
+UserPatches/SampInst/Diva - XS Da Whomp
+UserPatches/SampInst/Diva - XS Dubstep Bass 2
+UserPatches/SampInst/Diva - XS Juno Hoover
+UserPatches/SampInst/Diva - XS Low Funk
+UserPatches/SampInst/Diva - 3EE_Syupa So
+UserPatches/SampInst/Diva - BS Deep Space
+UserPatches/SampInst/Diva - HS Angel Wings
+UserPatches/SampInst/Diva - HS Cheap Carpet
+UserPatches/SampInst/Diva - HS Circling Flight
+UserPatches/SampInst/Diva - HS Darkestra
+UserPatches/SampInst/Diva - HS Fourth Bridge
+UserPatches/SampInst/Diva - HS Giant Sloth
+UserPatches/SampInst/Diva - HS Harbinger
+UserPatches/SampInst/Diva - HS Icicles
+UserPatches/SampInst/Diva - HS Majority Report
+UserPatches/SampInst/Diva - HS Quatermass 1
+UserPatches/SampInst/Diva - HS SunStrings
+UserPatches/SampInst/Diva - HS Undertone 1
+UserPatches/SampInst/Diva - HS White Dwarf
+UserPatches/SampInst/Diva - MK Flute 5th
+UserPatches/SampInst/Diva - MK Late Night
+UserPatches/SampInst/Diva - MK Planet Earth
+UserPatches/SampInst/Diva - MK Planet Uranus
+UserPatches/SampInst/Diva - MK Sine Piano
+UserPatches/SampInst/Diva - MM Cosmic Bliss
+UserPatches/SampInst/Diva - ROY Old Recipe
+UserPatches/SampInst/Diva - SW Magic Flute
+UserPatches/SampInst/Diva - TUC Explorer Pad
+UserPatches/SampInst/Diva - TUC Galactic Discoveries
+UserPatches/SampInst/Diva - TUC Second Sun
+UserPatches/SampInst/Diva - TUC Steam Starter
+UserPatches/SampInst/Diva - 3EE_Vallet
+UserPatches/SampInst/Diva - HS Baroqualog
+UserPatches/SampInst/Diva - HS Canterbury Creeper
+UserPatches/SampInst/Diva - HS Dirtbag
+UserPatches/SampInst/Diva - HS Dog Scratch
+UserPatches/SampInst/Diva - HS Eel Pi
+UserPatches/SampInst/Diva - HS French Whimsy
+UserPatches/SampInst/Diva - HS House Dust
+UserPatches/SampInst/Diva - HS Major Seven
+UserPatches/SampInst/Diva - HS Pentaxe
+UserPatches/SampInst/Diva - HS Prodigal
+UserPatches/SampInst/Diva - HS Razor
+UserPatches/SampInst/Diva - HS Solamis
+UserPatches/SampInst/Diva - HS Switched Back On
+UserPatches/SampInst/Diva - HS TriWrap Chord
+UserPatches/SampInst/Diva - MK 5th Threesome
+UserPatches/SampInst/Diva - MK 90s Rave Major
+UserPatches/SampInst/Diva - MK 90s Rave Sus
+UserPatches/SampInst/Diva - MK Bass Marshall
+UserPatches/SampInst/Diva - MK Flute
+UserPatches/SampInst/Diva - MK Mod Shaper MW
+UserPatches/SampInst/Diva - MK Oboe
+UserPatches/SampInst/Diva - MK Overdrive High
+UserPatches/SampInst/Diva - MK Saw Rubber
+UserPatches/SampInst/Diva - MK Syncopat
+UserPatches/SampInst/Diva - RC Angels Share
+UserPatches/SampInst/Diva - RC Smoke on the Purple
+UserPatches/SampInst/Diva - TAS Scratchy Pants
+UserPatches/SampInst/Diva - TAS Silver Shade
+UserPatches/SampInst/Diva - TUC Flash
+UserPatches/SampInst/Diva - TUC Funk Smacks
+UserPatches/SampInst/Diva - TUC Mini Pinch
+UserPatches/SampInst/Diva - TUC Needlespank
+UserPatches/SampInst/Diva - TUC Pluckphazer
+UserPatches/SampInst/Diva - TUC Single Cell Worm
+UserPatches/SampInst/Diva - TUC Starglitter
+UserPatches/SampInst/Diva - TUC Syncronized
+UserPatches/SampInst/Diva - XS Big Sync
+UserPatches/SampInst/Diva - XS Dance Saws
+UserPatches/SampInst/Diva - 3EE_All Aboard
+UserPatches/SampInst/Diva - 3EE_Winter Lullaby
+UserPatches/SampInst/Diva - HS Big Old Polly
+UserPatches/SampInst/Diva - HS Butterscotch
+UserPatches/SampInst/Diva - HS Callisto II
+UserPatches/SampInst/Diva - HS Childhood
+UserPatches/SampInst/Diva - HS Civil Surfaces
+UserPatches/SampInst/Diva - HS Fum Piano
+UserPatches/SampInst/Diva - HS Grass Brass
+UserPatches/SampInst/Diva - HS High StraDIVAri
+UserPatches/SampInst/Diva - HS Jupiter Falling
+UserPatches/SampInst/Diva - HS Lotus Blossom
+UserPatches/SampInst/Diva - HS Opera7
+UserPatches/SampInst/Diva - HS Pipes of Peace
+UserPatches/SampInst/Diva - HS Snow Organ
+UserPatches/SampInst/Diva - HS Squolsh
+UserPatches/SampInst/Diva - HS Steven Plinker
+UserPatches/SampInst/Diva - HS Stratosphere
+UserPatches/SampInst/Diva - HS The Wash
+UserPatches/SampInst/Diva - HS Twiggy
+UserPatches/SampInst/Diva - HS Ursa Minor
+UserPatches/SampInst/Diva - HS Wavey EP
+UserPatches/SampInst/Diva - HS Xmas Lights
+UserPatches/SampInst/Diva - MK Accordion Old
+UserPatches/SampInst/Diva - MK Brass Long
+UserPatches/SampInst/Diva - MK Cello
+UserPatches/SampInst/Diva - MK Clav Sync
+UserPatches/SampInst/Diva - MK Organ Relaxed
+UserPatches/SampInst/Diva - MK Saw Euro
+UserPatches/SampInst/Diva - MK Strings Short PWM
+UserPatches/SampInst/Diva - MK Symphonic Thunder
+UserPatches/SampInst/Diva - PG FilterConToUrs
+UserPatches/SampInst/Diva - TUC Alpha Announcer
+UserPatches/SampInst/Diva - TUC Hurlitzer Phazed
+UserPatches/SampInst/Diva - TUC Synth Pop Stabs
+UserPatches/SampInst/Zebra - HS Fretless Poly
+UserPatches/SampInst/Zebra - HS Jazz Dogbox
+UserPatches/SampInst/Zebra - HS Third FM Bass
+UserPatches/SampInst/Zebra - HS Wide Slapper
+UserPatches/SampInst/Zebra - HS French Oboe
+UserPatches/SampInst/Zebra - HS Klezmatron
+UserPatches/SampInst/Zebra - HS Little Big Horn
+UserPatches/SampInst/Zebra - HS Violince
+UserPatches/SampInst/Zebra - HS Almost Strings+
+UserPatches/SampInst/Zebra - HS Cellofane
+UserPatches/SampInst/Zebra - HS Ice Temple
+UserPatches/SampInst/Zebra - HS Little Voice
+UserPatches/SampInst/Zebra - HS Stringmachine Z
+UserPatches/SampInst/Zebra - HS Vangelic Horn
+UserPatches/SampInst/Zebra - HS 12-String Sitar
+UserPatches/SampInst/Zebra - HS Ballad Days
+UserPatches/SampInst/Zebra - HS Belle EPoque
+UserPatches/SampInst/Zebra - HS Celestial
+UserPatches/SampInst/Zebra - HS DX8
+UserPatches/SampInst/Zebra - HS Harpo
+UserPatches/SampInst/Zebra - HS Harpsichord
+UserPatches/SampInst/Zebra - HS Klicky Klav
+UserPatches/SampInst/Zebra - HS Major Bell+
+UserPatches/SampInst/Zebra - HS Phibes
+UserPatches/SampInst/Zebra - HS Rhode Lady
+UserPatches/SampInst/Zebra - HS X-Bells
+UserPatches/SampInst/Zebra - HS Flute Voices
+UserPatches/SampInst/Zebra - HS Gimme Some B3
+UserPatches/SampInst/Zebra - HS Parisian Squeeze
+UserPatches/SampInst/Zebra - HS Prog Holiness
+UserPatches/SampInst/Zebra - HS Bells of Hypercomb
+UserPatches/SampInst/Zebra - Bane Bass - smooth
+UserPatches/SampInst/Zebra - Monstrosity
+UserPatches/SampInst/Zebra - Ma Bell+
+UserPatches/SampInst/Zebra - Metal Spank - dark
+UserPatches/SampInst/Zebra - Hans Forlorn
+UserPatches/SampInst/Zebra - Hornstar
+UserPatches/SampInst/Zebra - Choir-ish Pad
+UserPatches/SampInst/Zebra - Comb Strings
+UserPatches/SampInst/Zebra - Harp
+UserPatches/SampInst/EK - Rhodes
+UserPatches/SampInst/EK - Wurlitzer
+UserPatches/SampInst/EK - Clavinet
+UserPatches/SampInst/EK - Clavinet Muted
+UserPatches/SampInst/101 - Fisherman'sFriend
+UserPatches/SampInst/101 - PortoViarta
+UserPatches/SampInst/101 - TVOD
+UserPatches/SampInst/101 - MostlyWyte
+UserPatches/SampInst/101 - FallingSun
+UserPatches/SampInst/101 - JazzMoine
+UserPatches/SampInst/101 - StereoTracks
+UserPatches/SampInst/101 - EasternPromises
+UserPatches/SampInst/2600 - 3Squares
+UserPatches/SampInst/2600 - BoogieBassSaw
+UserPatches/SampInst/2600 - HooverKraftLead
+UserPatches/SampInst/2600 - LawnmoMan
+UserPatches/SampInst/2600 - Osc1Saw
+UserPatches/SampInst/2600 - SampleAndChill
+UserPatches/SampInst/ARP Omni - Double Octave Saturated
+UserPatches/SampInst/2600 - BillyZaneBass
+UserPatches/SampInst/2600 - OneFiftySeven
+UserPatches/SampInst/ARP Omni - Long
+UserPatches/SampInst/ARP Omni - Double Octave
+UserPatches/SampInst/ARP Omni - Long & Saturated
+UserPatches/SampInst/ARP Omni - Open Double Octave
+UserPatches/SampInst/ARP Omni - Open Filter Saturated
+UserPatches/SampInst/ARP Omni - Short & Funky Saturated
+UserPatches/SampInst/KD - Bell Air
+UserPatches/SampInst/KD - Voices
+UserPatches/SampInst/Micro - Huge Sub
+UserPatches/SampInst/Micro - Square Dirt
+UserPatches/SampInst/Micro - Long Pulse
+UserPatches/SampInst/Micro - Long Res
+UserPatches/SampInst/Micro - Metro Funk
+UserPatches/SampInst/Micro - Saw Noise
+UserPatches/SampInst/Micro - Short Pulse
+UserPatches/SampInst/OB - Clav Funk
+UserPatches/SampInst/OB - Tube Man
+UserPatches/SampInst/SH5 - Hendrix Fuzz
+UserPatches/SampInst/SH5 - Wild LFO Lead
+UserPatches/SampInst/SYS100m - motherVShal
+UserPatches/SampInst/SS - Attack Lead - AELITA
+UserPatches/SampInst/SS - Kulak Decay - ALTAIR 231
+UserPatches/SampInst/VP330 - BrokenTape
+UserPatches/SampInst/VP330 - ShrimpWineCombo
+UserPatches/SampInst/Voyetra - Resonant Square Bass
+UserPatches/SampInst/Junos - Acid Bass
+UserPatches/SampInst/Junos - Sub Only
+UserPatches/SampInst/Junos - Chime Noise
+UserPatches/SampInst/Junos - Pretty Snappy
+UserPatches/SampInst/Junos - PWM Chorus
+UserPatches/SampInst/Junos - Housey
+UserPatches/SampInst/KD - Leslie
+UserPatches/SampInst/MS10 - 1Shot
+UserPatches/SampInst/MS10 - LA1991
+UserPatches/SampInst/MS10 - PartialEuro
+UserPatches/SampInst/MS10 - SuperPulse
+UserPatches/SampInst/Mini - 3 Stack Bass
+UserPatches/SampInst/Mini - Creamy Poly
+UserPatches/SampInst/Mini - Fat N Creamy Split
+UserPatches/SampInst/Mini - Funky Crunch
+UserPatches/SampInst/Mini - Haus Baby
+UserPatches/SampInst/Mini - Mama Bass
+UserPatches/SampInst/Mini - Sea Sick
+UserPatches/SampInst/Mirage - Fuzz Bass
+UserPatches/SampInst/Mirage - Acoustic Guitar Chorus
+UserPatches/SampInst/Mirage - Attack Piano
+UserPatches/SampInst/Mirage - Flute
+UserPatches/SampInst/Mirage - Broken Brass
+UserPatches/SampInst/Mirage - Sine
+UserPatches/SampInst/OB - Clarinet
+UserPatches/SampInst/OB - Afternoon Raver
+UserPatches/SampInst/OB - Medium Muff
+UserPatches/SampInst/OB - Horror Movie
+UserPatches/SampInst/OB - AM Funk
+UserPatches/SampInst/OB - Mellow Mallet
+UserPatches/SampInst/OB - Black Star Tri
+UserPatches/SampInst/OB - King Jimmy
+UserPatches/SampInst/SH5 - Baby Vibraphone
+UserPatches/SampInst/SH5 - Don't Answer FX
+UserPatches/SampInst/SH5 - Fat Interval Lead
+UserPatches/SampInst/SH5 - Moving Square
+UserPatches/SampInst/SH5 - Mr Edgar
+UserPatches/SampInst/SH5 - Rubbery Res
+UserPatches/SampInst/SH5 - Squared Up Noise
+UserPatches/SampInst/SH5 - Syn Toms
+UserPatches/SampInst/SH5 - Tri & Pulse
+UserPatches/SampInst/SS - Ataka Bass - FORMANTA POLIVOKS
+UserPatches/SampInst/SS - Lil Funk Bass - ESTRADIN 230
+UserPatches/SampInst/SS - Zapoy Bass - FORMANTA POLIVOKS
+UserPatches/SampInst/SS - Comecon Fifths - ALTAIR 231
+UserPatches/SampInst/SS - Serious Raver - AELITA
+UserPatches/SampInst/SS - Harp - MAESTRO
+UserPatches/SampInst/SS - Mod Lead - AELITA
+UserPatches/SampInst/SS - Bukhat Pad - FORMANTA POLIVOKS
+UserPatches/SampInst/SS - Troika Pulse - ALTAIR 231
+UserPatches/SampInst/SYS100m - 1200BC
+UserPatches/SampInst/SYS100m - BowiesInSpace
+UserPatches/SampInst/SYS100m - Dual Sawtooth
+UserPatches/SampInst/SYS100m - HalfSub_Tri
+UserPatches/SampInst/SYS100m - PutARingOneIt
+UserPatches/SampInst/SYS100m - SystemIsDown
+UserPatches/SampInst/VP330 - 2000Pads
+UserPatches/SampInst/VP330 - BirdThoughts
+UserPatches/SampInst/VP330 - DivePlavalaguna
+UserPatches/SampInst/VP330 - EnsembleFemale
+UserPatches/SampInst/VP330 - FancyChair
+UserPatches/SampInst/VP330 - Hey
+UserPatches/SampInst/VP330 - LovelyHorns
+UserPatches/SampInst/VP330 - PrissPad
+UserPatches/SampInst/VP330 - SomeAttack
+UserPatches/SampInst/VP330 - StringsLow
+UserPatches/SampInst/VS - 2600 Dirtier C1
+UserPatches/SampInst/VS - BassStation Square Round C0
+UserPatches/SampInst/VS - CAT Filter Smooth C0
+UserPatches/SampInst/VS - CAT Unison Dive C1
+UserPatches/SampInst/VS - CS5 Square Verb C0
+UserPatches/SampInst/VS - Juno106 Square Dive C1
+UserPatches/SampInst/VS - MKS-7 Dirty E0
+UserPatches/SampInst/VS - MS20 Fuzz Mod G0
+UserPatches/SampInst/VS - MonoEvolver Sub Thump D#0
+UserPatches/SampInst/VS - Prodigy Square Pluck C1
+UserPatches/SampInst/VS - Synare Sub Clean C1
+UserPatches/SampInst/VS - TB303 Res Classic C1
+UserPatches/SampInst/VS - DX200 E Piano Trill Cmin11 C2
+UserPatches/SampInst/VS - DX200 House Mid Cmin9 C3
+UserPatches/SampInst/VS - M1 Organ Wobble Fmaj9 C2
+UserPatches/SampInst/VS - Polaris Rave Air G2
+UserPatches/SampInst/VS - Polaris Stab C#2
+UserPatches/SampInst/VS - Polysix Classic A#1
+UserPatches/SampInst/VS - BassStation Bad Radio C3
+UserPatches/SampInst/VS - DX200 Scifi Drone C2
+UserPatches/SampInst/VS - Juno106 Subby Long C2
+UserPatches/SampInst/VS - Sub37 Bad Phone C4
+UserPatches/SampInst/VS - DX100 Club Organ C2
+UserPatches/SampInst/VS - DX100 New Electro C4
+UserPatches/SampInst/VS - Juno106 Wide Pad C2
+UserPatches/SampInst/VS - Maestro Clav C3
+UserPatches/SampInst/VS - Polaris Epic C1
+UserPatches/SampInst/VS - Polysix Organ C2
+UserPatches/SampInst/VS - Prodigy Bell Verb A6
+UserPatches/SampInst/VS - Prodigy Dark Pluck Verb G2
+UserPatches/SampInst/VS - Prodigy Swell G3
+UserPatches/SampInst/VS - TB303 Saw C0
+UserPatches/SampInst/VS - VP330 Combo Brite A#2
+UserPatches/SampInst/VS - CS5 Tremolo Wide C3
+UserPatches/SampInst/VS - Estradin230 Res Dip C2
+UserPatches/SampInst/VS - Jupiter4 Saw Delay G2
+UserPatches/SampInst/VS - MS20 Unison LFO C2
+UserPatches/SampInst/VS - Polysix Moon Moth C4
+UserPatches/SampInst/VS - Prodigy PWM Chorus C1
+UserPatches/SampInst/VS - Sub37 Blade Triplet C2
+UserPatches/SampInst/VS - Jupiter4 Bip C3
+UserPatches/SampInst/VS - MonoEvolver Metro Sub C3
+UserPatches/SampInst/VS - Prodigy Pitch Rim C3
+UserPatches/SampInst/VS - Sub37 Knock Verb C3
+UserPatches/SampInst/Voyetra - Alien Bubbles FX
+UserPatches/SampInst/Voyetra - Envelope Square
+UserPatches/SampInst/Voyetra - LFO Synth
+UserPatches/SampInst/Voyetra - Massive Poly
+UserPatches/SampInst/Voyetra - Noisey Saw LFO
+UserPatches/SampInst/Voyetra - Ravey Pitch Mod
+UserPatches/SampInst/Voyetra - Saw Pad
+UserPatches/SampInst/Essence - Army Of Mute
+UserPatches/SampInst/Essence - Devil Donk
+UserPatches/SampInst/Essence - Intoxicated
+UserPatches/SampInst/Essence - Rock Lobster
+UserPatches/SampInst/Essence - Trash Cans
+UserPatches/SampInst/Essence - Bentley Boom
+UserPatches/SampInst/Essence - Carnage Amp
+UserPatches/SampInst/Essence - Dark Matter
+UserPatches/SampInst/Essence - Dynamic Pick
+UserPatches/SampInst/Essence - Evil Reeds
+UserPatches/SampInst/Essence - Grime Dystopia
+UserPatches/SampInst/Essence - House Fifth
+UserPatches/SampInst/Essence - Knock
+UserPatches/SampInst/Essence - Modern Pick
+UserPatches/SampInst/Essence - Plucky Organ B
+UserPatches/SampInst/Essence - Rough Analogue
+UserPatches/SampInst/Essence - Terror Reese
+UserPatches/SampInst/MD - Bass - Classic 60
+UserPatches/SampInst/MD - Bass - Pacific Depth
+UserPatches/SampInst/MD - Bass - Third Eye
+UserPatches/SampInst/MD - Brass - Honey Horns
+UserPatches/SampInst/MD - Brass - Velvet OB
+UserPatches/SampInst/MD - Keys - Harmonic Chime
+UserPatches/SampInst/MD - Keys - Subtle Deconstruction
+UserPatches/SampInst/MD - Leads - Poly Valhalla
+UserPatches/SampInst/MD - Leads - Third Degree Burn
+UserPatches/SampInst/MD - Pads - Lofi Juno
+UserPatches/SampInst/MD - Strings - Cinema Synth
+UserPatches/Wavetable/LW - ADDITIVE+ZAP
+UserPatches/Wavetable/LW - ALIEN_VO+ESQ1-LO
+UserPatches/Wavetable/LW - FAIRLIGH+SPECTR02
+UserPatches/Wavetable/LW - GRAV-C5+SOHLER38
+UserPatches/Wavetable/LW - PD101+SYNLP64
+UserPatches/Wavetable/LW - RRLYRQ6+SYNTH_VO
+UserPatches/Wavetable/LW - SOHLER27+VOXSYNTH
+UserPatches/Wavetable/LW - SOHLER34+SYNLP100
+UserPatches/Wavetable/LW - SOHLER56+SOHLER60
+UserPatches/Wavetable/LW - SOHLER80+TIDYB006
+UserPatches/Wavetable/LW - SOHLER85+TIDYB027
+UserPatches/Wavetable/LW - SYNLP107+SYNLP113
+UserPatches/Wavetable/LW - SYNLP138+SYNLP35
+UserPatches/Wavetable/LW - SYNLP14+SYNLPG07
+UserPatches/Wavetable/LW - SYNLP149+SYNLP89
+UserPatches/Wavetable/LW - SYNLP15+SYNLPG05
+UserPatches/Wavetable/LW - SYNLP3+SYNLP84
+UserPatches/Wavetable/LW - SYNLP45+SYNLP97
+UserPatches/Wavetable/LW - SYNLP54+SYNLP87
+UserPatches/Wavetable/LW - SYNLP57+SYNLPG00
+UserPatches/Wavetable/LW - BANK_410+SOHLER26
+UserPatches/Wavetable/LW - BOWING+RESO_ANA
+UserPatches/Wavetable/LW - CLOCK_MU+TEXTURE4
+UserPatches/Wavetable/LW - GEOMETRI+SYNLP171
+UserPatches/Wavetable/LW - GRAV-A9+SOFT_MAN
+UserPatches/Wavetable/LW - MAGNET00+SOHLER16
+UserPatches/Wavetable/LW - SAW_BEND+SYNLPG04
+UserPatches/Wavetable/LW - SOHLER05+SOHLER71
+UserPatches/Wavetable/LW - SOHLER25+TIDYB025
+UserPatches/Wavetable/LW - SYNLP10+SYNLP131
+UserPatches/Wavetable/LW - SYNLP103+SYNLP177
+UserPatches/Wavetable/LW - SYNLP132+SYNLP141
+UserPatches/Wavetable/LW - SYNLP155+SYNLP16
+UserPatches/Wavetable/LW - SYNLP161+SYNLP180
+UserPatches/Wavetable/LW - SYNLP17+SYNLP99
+UserPatches/Wavetable/LW - SYNLP174+SYNLP66
+UserPatches/Wavetable/LW - SYNLP193+SYNLP24
+UserPatches/Wavetable/LW - SYNLP55+SYNLP95
+UserPatches/Wavetable/LW - TIDYB029+TIDYB045
+UserPatches/Wavetable/LW - TIDYB050+VINCENT_
+UserPatches/Granular/GR - Atmos Metro
+UserPatches/Granular/GR - Bowed Metal
+UserPatches/Granular/GR - Calmbience
+UserPatches/Granular/GR - Count The Ways
+UserPatches/Granular/GR - Date Night
+UserPatches/Granular/GR - Deep Tuning
+UserPatches/Granular/GR - Flow
+UserPatches/Granular/GR - Irrupt Melodic
+UserPatches/Granular/GR - Juno PWM Chorus
+UserPatches/Granular/GR - Jupiter Saw Delay
+UserPatches/Granular/GR - Kora
+UserPatches/Granular/GR - Lemongrass
+UserPatches/Granular/GR - Milky Way
+UserPatches/Granular/GR - Oriental Orchestra 1
+UserPatches/Granular/GR - Oriental Orchestra 2
+UserPatches/Granular/GR - Polaris Epic
+UserPatches/Granular/GR - Satin Ties
+UserPatches/Granular/GR - Sub37 Big Sync
+UserPatches/Granular/GR - Sub37 Modulations
+UserPatches/Granular/GR - VP330 Loop
