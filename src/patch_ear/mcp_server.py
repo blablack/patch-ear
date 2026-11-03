@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import os
 import sys
 
 from mcp.server.mcpserver import MCPServer
 
 from . import catalogue, query
-from .config import DEFAULT_CONFIG, load_config
+from .config import load_config
 
 mcp = MCPServer("patch-ear")
 
 
 def _conn():
-    cfg = load_config(os.environ.get("PATCH_EAR_CONFIG", DEFAULT_CONFIG))
+    cfg = load_config()
     if not cfg.catalogue.exists():
         raise RuntimeError(f"catalogue not found at {cfg.catalogue}; run `patch-ear analyze` first")
     return catalogue.connect(cfg.catalogue, readonly=True)

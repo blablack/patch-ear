@@ -49,10 +49,68 @@ def _common_prefix_len(names: list[str]) -> int:
     return i + 1 if i > 0 else 0
 
 
+# ---------------- one library folder, shapes told apart per folder ----------------
+
+_KIT_DIR = re.compile(r"\bkits?\b", re.IGNORECASE)
+_NOTE_TOKEN = re.compile(r"(?<![A-Za-z])[A-G][#b]?-?\d(?!\d)")  # C#3, A2
+_CATEGORY_WORDS = {"bass": "Bass", "lead": "Lead", "pad": "Pad", "pluck": "Pluck", "arp": "Arp", "keys": "Keys", "piano": "Keys",
+                   "strings": "Strings", "brass": "Brass", "fx": "FX", "vocal": "Vocal", "choir": "Vocal"}
+
+
+def _is_multisample(files: list[Path]) -> bool:
+    """Several files whose names carry a note (MIDI number + name, or a name like C#3)."""
+    if len(files) < 3:
+        return False
+    noted = sum(1 for p in files if _MIDI_ANYWHERE.search(p.stem) or _NOTE_TOKEN.search(p.stem))
+    return noted / len(files) >= 0.6
+
+
+def _guess_category(parts: tuple[str, ...], fallback: str) -> str:
+    for word in re.split(r"[^a-z]+", " ".join(parts).lower()):
+        if word in _CATEGORY_WORDS:
+            return _CATEGORY_WORDS[word]
+    return fallback
+
+
+def _library_items(src: SourceConfig) -> list[Item]:
+    """Kits, multisamples and one-shots found under one folder. The shape is decided per folder:
+    - anything under a folder called "Kits" (or "... Kit"): the folder just below it is one kit (hits nested inside);
+    - a folder whose file names carry notes: one multisample preset;
+    - otherwise every file is a one-shot.
+    Point the source at the folders you want; nothing here filters out drum hits or loops."""
+    root, fallback = src.path, src.category if src.category != "auto" else "Synth"
+    kits: dict[Path, list[Path]] = {}
+    folders: dict[Path, list[Path]] = {}
+    for p in _wavs(root):
+        parts = p.relative_to(root).parent.parts
+        i = next((i for i, part in enumerate(parts) if _KIT_DIR.search(part)), None)
+        if i is not None:
+            kits.setdefault(root.joinpath(*parts[: min(i + 2, len(parts))]), []).append(p)
+        else:
+            folders.setdefault(p.parent, []).append(p)
+    out: list[Item] = []
+    kit_names = [k.name for k in kits]
+    for k, files in sorted(kits.items()):
+        rel = k.relative_to(root)
+        name = k.name if kit_names.count(k.name) == 1 else f"{k.parent.name} / {k.name}"
+        out.append(Item(f"{src.name}:{rel}", name, spread(files), AVERAGE, len(files), category="Drum", tags=["type:kit"]))
+    for f, files in sorted(folders.items()):
+        rel = f.relative_to(root)
+        if _is_multisample(files):
+            out.append(Item(f"{src.name}:{rel}", f.name if str(rel) != "." else root.name, [_pick(files, src.ref_midi)],
+                            REPRESENTATIVE, len(files), category=_guess_category(rel.parts, fallback), tags=["type:instrument"]))
+        else:
+            for p in files:
+                out.append(Item(f"{src.name}:{p.relative_to(root)}", p.stem, [p], category=_guess_category(rel.parts, fallback), tags=["type:oneshot"]))
+    return out
+
+
 # ---------------- generic libraries ----------------
 
 def items_for(src: SourceConfig) -> list[Item]:
     """Every catalogue row the source should produce."""
+    if src.type == "library":
+        return _library_items(src)
     root, wavs = src.path, _wavs(src.path)
     rel = lambda p: p.relative_to(root)  # noqa: E731
 
@@ -166,7 +224,7 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
                 emit("cancelled")
                 return
             sig = _signature(item)
-            lib = item.library or src.name
+            lib = item.library or src.library or src.path.name
             if have.get(item.id) == sig:
                 counts["unchanged"] += 1
                 conn.execute("UPDATE patches SET library=? WHERE id=? AND library!=?", (lib, item.id, lib))  # backfill without re-measuring

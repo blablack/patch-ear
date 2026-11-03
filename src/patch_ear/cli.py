@@ -5,7 +5,7 @@ import json
 
 from . import catalogue, query
 from .analyze import analyze
-from .config import DEFAULT_CONFIG, load_config
+from .config import default_config, load_config
 
 
 def _run_analyze(cfg, only, force, limit=None) -> None:
@@ -36,7 +36,7 @@ def _run_analyze(cfg, only, force, limit=None) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(prog="patch-ear")
-    ap.add_argument("-c", "--config", default=DEFAULT_CONFIG)
+    ap.add_argument("-c", "--config", default=None, help="config file (default: $PATCH_EAR_HOME/patch-ear.toml, home = ./data)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     a = sub.add_parser("analyze", help="measure all sources and update the catalogue (incremental)")
@@ -57,6 +57,7 @@ def main() -> None:
     w.add_argument("--port", type=int, default=8765)
 
     args = ap.parse_args()
+    args.config = args.config or default_config()
     if args.cmd == "serve":
         import uvicorn
 

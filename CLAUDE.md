@@ -13,10 +13,19 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
   Tabs: Analysis (job progress bars/ETA/log, settings), Libraries, Plugins, Catalogue (sort/filter/audition).
   The UI edits the same TOML (comments in hand-edited files are NOT preserved on save). Analysis runs in a background thread
   and the UI polls `/api/status`. Localhost only: Host and Origin are checked, audio is served only for paths already in the catalogue.
-- Source `type` mirrors patch-press library shapes: multisample (folder = preset), filename (`<patch>-<midi>_<note>` in one folder),
-  oneshots, drumkit, kit (a kit = ONE row, averaged over <=24 hits), wavetable; plus bitwig/clap/vst3 (config stored, analyser not
-  built). Old `group=` configs are mapped. NO source type is device-specific (the old `deluge`/`bento` types were removed, #16).
-- `press` type (press.py; needs `uv sync --extra press`) is the way to scan the WHOLE library: it walks a patch-press Configs tree
+- **State lives in one folder, the patch-ear home** (`config.home()`: `$PATCH_EAR_HOME`, else `./data`, gitignored): `patch-ear.toml`,
+  `catalogue.db`, `previews/`, subset files. Relative paths in the config resolve from it. Library folders are absolute paths (NAS mounts);
+  nothing refers to sibling repos. Cloud: mount a volume at the home folder and the library as a read-only mount. `-c`/`PATCH_EAR_CONFIG` override the file.
+- `library` type is the main route for raw libraries (no patch-press needed): point a source at a folder you want covered and the shape is
+  decided PER FOLDER (`analyze._library_items`): under a folder named "Kits"/"... Kit" -> the folder just below it is ONE kit (averaged over
+  <=24 hits, category Drum); a folder whose file names carry notes (`048_c2`, `C#3`; >=60%) -> ONE multisample preset (one representative
+  sample); anything else -> every file is a one-shot. NOTHING is filtered out (hits and loops included): point it only at folders you want.
+  `library` = the source folder's name unless the source sets `library`. Category from path words (bass, pad, ...) else the source's `category`
+  else Synth. Libraries with no "Kits" folder (Just Add Drums) should use the explicit `kit`/`drumkit` types.
+- Explicit types mirror patch-press library shapes: multisample (folder = preset), filename (`<patch>-<midi>_<note>` in one folder),
+  oneshots, drumkit, kit, wavetable; plus bitwig/clap/vst3 (config stored, analyser not built). Old `group=` configs are mapped.
+  NO source type is device-specific (the old `deluge`/`bento` types were removed, #16).
+- `press` type (press.py; needs `uv sync --extra press`) is for what only patch-press can read (CLAP/VST3 plugin presets rendered one note, Kontakt/SFZ/Bitwig maps): it walks a patch-press Configs tree
   (`<root>/<library>/<subfolders>/<preset>.yaml`; prepare-sd-cards/output/Configs); the first folder is the `library`, id =
   `<source>:<config path without .yaml>`. `only_list` is an optional SUBSET file (config paths, `*`/`?` allowed, `#` comments;
   see `subset.txt`); unmatched patterns are reported as notes. Kind (kit / wavetable / instrument) is read from the config
@@ -26,13 +35,12 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
   patch-press `derive_tags` (a 15-tag vocabulary: Bass, Pad, Drum, ...; "Synth" is generic so the more specific tag wins, all tags kept).
   Previews of rendered audio go to previews/ next to the catalogue. Change detection stats the config yaml only (library edits need
   --force). Run with `uv run --extra press patch-ear analyze`.
-- `patch-ear.toml` (gitignored) currently points one `press` source at the Configs tree with `subset.txt` (44 presets over 6 libraries,
-  ~8 s). Remove `only_list` to scan everything (~3400 configs; the old 2230-preset selection took ~6 min, so expect longer).
+- `data/patch-ear.toml` currently has two `library` sources (drumtrax Kits, arp_omni) as a smoke test.
 
 ## Commands
 - `uv sync`; `uv run patch-ear analyze [--source X] [--force]`; `uv run patch-ear search bass --sort grit --filter centroid_hz::400`
 - MCP (Claude Desktop config): command `uv`, args `["--directory", "<abs path to patch-ear>", "run", "patch-ear-mcp"]`,
-  env `PATCH_EAR_CONFIG=<abs path to patch-ear.toml>`.
+  env `PATCH_EAR_HOME=<abs path to the home folder>` (or `PATCH_EAR_CONFIG=<abs path to patch-ear.toml>`).
 
 ## Status / not built yet
 - Only WAV types are analysable (`SourceType.analyzable`). Plugin (CLAP/VST3) presets should be rendered via patch-press adapters

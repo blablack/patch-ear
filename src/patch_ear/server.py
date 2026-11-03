@@ -19,7 +19,7 @@ from starlette.routing import Route
 
 from . import catalogue, query
 from .analyze import _MIDI_ANYWHERE, _NOTE_SUFFIX, analyze
-from .config import SOURCE_TYPES, load_raw, parse, save_raw
+from .config import SOURCE_TYPES, default_config, load_raw, parse, save_raw
 
 STATIC = Path(__file__).parent / "static"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "testserver"}
@@ -143,8 +143,8 @@ def suggest_type(root: Path) -> dict:
     return info | {"suggestion": "oneshots", "reason": "un-pitched loose files"}
 
 
-def create_app(config_path: str | Path = "patch-ear.toml") -> Starlette:
-    cfg_path = Path(config_path).expanduser().resolve()
+def create_app(config_path: str | Path | None = None) -> Starlette:
+    cfg_path = Path(config_path or default_config()).expanduser().resolve()
     job = Job()
 
     def cfg():

@@ -1,4 +1,4 @@
-# Copy to patch-ear.toml, or just run `patch-ear serve` and use the web UI (it writes this file).
+# Copy to $PATCH_EAR_HOME/patch-ear.toml (default ./data/patch-ear.toml), or just run `patch-ear serve` and use the web UI (it writes this file).
 
 [catalogue]
 path = "catalogue.db"   # relative paths resolve from this file's folder
@@ -6,8 +6,15 @@ path = "catalogue.db"   # relative paths resolve from this file's folder
 [analysis]
 max_seconds = 8.0       # only the first N seconds of each file are analysed
 
-# type: press | multisample | filename | oneshots | drumkit | kit | wavetable   (analysable)
+# type: library | press | multisample | filename | oneshots | drumkit | kit | wavetable   (analysable)
 #       bitwig | clap | vst3                                            (stored, analyser not built yet)
+# Simplest: point at a folder you want covered. Kits (under a "Kits" folder), multisamples (note-named files) and one-shots are told apart per folder.
+[[source]]
+name = "drumtrax"
+type = "library"
+path = "/path/to/Samples From Mars/drumtrax_from_mars/02. Kits"
+library = "drumtrax_from_mars"   # optional; default is the folder's name
+
 [[source]]
 name = "essence-bass"
 type = "filename"       # <patch>-<midi>_<note>.wav in one folder

@@ -5,13 +5,25 @@ The raw dict (as in the TOML file) is the source of truth; `parse` validates it 
 
 from __future__ import annotations
 
+import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import tomli_w
 
-DEFAULT_CONFIG = "patch-ear.toml"
+CONFIG_NAME = "patch-ear.toml"
+
+
+def home() -> Path:
+    """The one folder patch-ear keeps its state in: config, catalogue and audio previews.
+    PATCH_EAR_HOME, else ./data. In the cloud this is the volume to mount; library folders stay absolute paths (mounts)."""
+    return Path(os.environ.get("PATCH_EAR_HOME") or "data").expanduser().resolve()
+
+
+def default_config() -> Path:
+    """PATCH_EAR_CONFIG if set, else <home>/patch-ear.toml."""
+    return Path(os.environ["PATCH_EAR_CONFIG"]).expanduser() if os.environ.get("PATCH_EAR_CONFIG") else home() / CONFIG_NAME
 
 
 @dataclass(frozen=True)
@@ -28,6 +40,11 @@ class SourceType:
 
 # Mirrors patch-press's source shapes (see ../patch-press/CLAUDE.md). "filename" is patch-ear specific.
 SOURCE_TYPES: list[SourceType] = [
+    SourceType("library", "Library folder (auto)",
+               "Point at a folder you want covered; the shape is decided per folder. Anything under a folder called \"Kits\" "
+               "(or \"... Kit\") is a kit (the folder below it = one kit, averaged over its hits); a folder whose file names carry "
+               "notes is one multisample; every other file is a one-shot. Nothing is filtered out, so point it only at folders "
+               "you want. The library name is the folder's name unless you set one.", ref_midi=True, auto_category=True),
     SourceType("multisample", "Multisample library",
                "One subfolder = one preset (the notes of one instrument). Point at the folder whose subfolders are the presets. "
                "Like patch-press scan-library --type multisample.", ref_midi=True),
@@ -75,6 +92,7 @@ class SourceConfig:
     ref_midi: int = 36
     plugin: Path | None = None  # plugin binary, plugin types only
     only_list: Path | None = None  # text file, one patch path per line; others are ignored
+    library: str = ""  # name shown as the preset's library; empty = the source folder's name
 
     @property
     def stype(self) -> SourceType:
@@ -136,13 +154,13 @@ def parse(raw: dict, base: Path) -> Config:
         sources.append(SourceConfig(
             name=name, path=Path(s["path"]).expanduser(), category=str(s.get("category", "")).strip() or "auto", type=stype,
             ref_midi=int(s.get("ref_midi", 36)), plugin=Path(plugin).expanduser() if plugin else None,
-            only_list=_rel(str(s.get("only_list", "")), base),
+            only_list=_rel(str(s.get("only_list", "")), base), library=str(s.get("library", "")).strip(),
         ))
     return Config(catalogue=cat, max_seconds=float(raw.get("analysis", {}).get("max_seconds", 8.0)), sources=sources)
 
 
-def load_config(path: str | Path = DEFAULT_CONFIG) -> Config:
-    path = Path(path).expanduser()
+def load_config(path: str | Path | None = None) -> Config:
+    path = Path(path).expanduser() if path else default_config()
     return parse(load_raw(path), path.resolve().parent)
 
 
@@ -162,6 +180,8 @@ def normalize_raw(raw: dict) -> dict:
             item["ref_midi"] = int(s.get("ref_midi", 36))
         if str(s.get("plugin", "")).strip():
             item["plugin"] = str(s["plugin"]).strip()
+        if str(s.get("library", "")).strip():
+            item["library"] = str(s["library"]).strip()
         if str(s.get("only_list", "")).strip():
             item["only_list"] = str(s["only_list"]).strip()
         out["source"].append(item)
