@@ -28,7 +28,6 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
   --force). Run with `uv run --extra press patch-ear analyze`.
 - `patch-ear.toml` (gitignored) currently points one `press` source at the Configs tree with `subset.txt` (44 presets over 6 libraries,
   ~8 s). Remove `only_list` to scan everything (~3400 configs; the old 2230-preset selection took ~6 min, so expect longer).
-  Shipped Diva/Zebra patches are already rendered WAVs there, so they are analysable without a plugin renderer.
 
 ## Commands
 - `uv sync`; `uv run patch-ear analyze [--source X] [--force]`; `uv run patch-ear search bass --sort grit --filter centroid_hz::400`
