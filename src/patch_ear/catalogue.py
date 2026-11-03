@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS patches (
     size INTEGER NOT NULL,
     features TEXT NOT NULL,       -- JSON
     tags TEXT NOT NULL DEFAULT '[]',   -- JSON list (e.g. Bento patchindex tags)
-    n_samples INTEGER NOT NULL DEFAULT 1  -- samples in the preset; features are one sample's or the average of several
+    n_samples INTEGER NOT NULL DEFAULT 1,  -- samples in the preset; features are one sample's or the average of several
+    library TEXT NOT NULL DEFAULT ''       -- the library the preset comes from (a Deluge collection, or the source's name)
 );
 CREATE INDEX IF NOT EXISTS idx_patches_category ON patches(category);
 """
@@ -46,7 +47,8 @@ def connect(path: Path, readonly: bool = False) -> sqlite3.Connection:
         conn = sqlite3.connect(path, timeout=15)
         conn.executescript(SCHEMA)
         have = {r[1] for r in conn.execute("PRAGMA table_info(patches)")}
-        for col, ddl in (("tags", "TEXT NOT NULL DEFAULT '[]'"), ("n_samples", "INTEGER NOT NULL DEFAULT 1")):
+        for col, ddl in (("tags", "TEXT NOT NULL DEFAULT '[]'"), ("n_samples", "INTEGER NOT NULL DEFAULT 1"),
+                         ("library", "TEXT NOT NULL DEFAULT ''")):
             if col not in have:  # catalogue created by an earlier version
                 conn.execute(f"ALTER TABLE patches ADD COLUMN {col} {ddl}")
     conn.row_factory = sqlite3.Row
@@ -60,9 +62,9 @@ def known(conn: sqlite3.Connection) -> dict[str, tuple[float, int, str]]:
 
 def upsert(conn: sqlite3.Connection, row: dict) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO patches (id,name,source,source_kind,category,path,representative,mtime,size,features,tags,n_samples) "
-        "VALUES (:id,:name,:source,:source_kind,:category,:path,:representative,:mtime,:size,:features,:tags,:n_samples)",
-        {**row, "features": json.dumps(row["features"]), "tags": json.dumps(row.get("tags", [])), "n_samples": row.get("n_samples", 1)},
+        "INSERT OR REPLACE INTO patches (id,name,source,source_kind,category,path,representative,mtime,size,features,tags,n_samples,library) "
+        "VALUES (:id,:name,:source,:source_kind,:category,:path,:representative,:mtime,:size,:features,:tags,:n_samples,:library)",
+        {**row, "features": json.dumps(row["features"]), "tags": json.dumps(row.get("tags", [])), "n_samples": row.get("n_samples", 1), "library": row.get("library", "")},
     )
 
 

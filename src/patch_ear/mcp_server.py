@@ -29,23 +29,26 @@ def list_categories() -> dict:
     for r in catalogue.load_ranked(conn):
         for t in r.get("tags", []):
             tags[t] = tags.get(t, 0) + 1
-    return {"categories": counts, "tags": tags, "measurements": query.SORTABLE,
+    libraries = {r["library"]: r["n"] for r in conn.execute("SELECT library, COUNT(*) n FROM patches GROUP BY library")}
+    return {"categories": counts, "libraries": libraries, "tags": tags, "measurements": query.SORTABLE,
             "notes": "grit and weight are 0-100 scores (percentile within category). Other measurements are raw values."}
 
 
 @mcp.tool()
-def search_patches(category: str | None = None, tag: str | None = None, filters: dict[str, list[float | None]] | None = None,
+def search_patches(category: str | None = None, tag: str | None = None, library: str | None = None, filters: dict[str, list[float | None]] | None = None,
                    sort_by: str = "grit", descending: bool = True, limit: int = 15) -> list[dict]:
     """Rank patches by measured audio character, within a category (percentiles are per category) and/or a tag.
 
     category: the primary category (for Bento patches: the most specific patchindex tag, e.g. Bass, Pad, Drum, Atmosphere).
     tag: any of a patch's tags (a patch can have several, e.g. Synth + Lead).
 
+    library: the library a preset comes from (case-insensitive substring, e.g. "drumtrax"); list_categories shows them.
+
     filters: {measurement: [min_or_null, max_or_null]}, e.g. {"centroid_hz": [null, 400], "side_mid_db": [null, -40]}.
     sort_by: grit, weight, or any raw measurement (centroid_hz, low_ratio, flatness, lfo_rate_hz, ...).
     Results come from measurements, not preset names. The user's ears make the final call."""
     rows = catalogue.load_ranked(_conn(), category)
-    return [query.summarize(r) for r in query.search(rows, filters, sort_by, descending, limit, tag)]
+    return [query.summarize(r) for r in query.search(rows, filters, sort_by, descending, limit, tag, library)]
 
 
 @mcp.tool()

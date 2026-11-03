@@ -304,7 +304,7 @@ function rowEl(r) {
   return h("tr", {},
     h("td", {}, h("button", { class: "btn", onclick: e => play(r.id, e.target) }, playingId === r.id ? "■" : "▶")),
     h("td", { title: `centroid ${Math.round(f.centroid_hz)} Hz · <150 Hz ${Math.round(100 * f.low_ratio)}% · >2 kHz ${(100 * f.hi_ratio).toFixed(1)}% · crest ${f.crest_db.toFixed(1)} dB · side/mid ${Math.round(f.side_mid_db)} dB · attack ${f.attack_s.toFixed(2)} s · decay ${f.decay_s.toFixed(1)} s · pitch ${f.f0_hz ? Math.round(f.f0_hz) + " Hz (clarity " + f.pitch_clarity.toFixed(2) + ")" : "none"} · inharmonic ${f.inharmonic_ratio.toFixed(2)} · rough ${f.roughness.toFixed(2)} · movement ${f.timbre_movement.toFixed(2)}` },
-      h("div", {}, r.name), h("div", { class: "mono mute" }, r.source + (r.n_samples > 1 ? ` · ${r.measured_as} (${r.n_samples})` : ""))),
+      h("div", {}, r.name), h("div", { class: "mono mute" }, (r.library && r.library !== r.source ? r.library + " · " : "") + r.source + (r.n_samples > 1 ? ` · ${r.measured_as} (${r.n_samples})` : ""))),
     h("td", {}, r.category, r.tags.length > 1 ? h("div", { class: "help" }, r.tags.join(", ")) : null),
     h("td", { title: "percentile within category: " + p.grit }, meter(p.grit), " ", p.grit),
     h("td", { title: "percentile within category: " + p.weight }, meter(p.weight), " ", p.weight),

@@ -107,7 +107,7 @@ def plan(src: SourceConfig) -> tuple[list[Item], list[str]]:
         tags = derive_tags(cat, coll, sub, name)
         display = " / ".join([coll, *sub[-1:], name])
         items.append(Item(
-            id=f"{src.name}:{entry}", name=display, tags=[*tags, f"type:{kind}"], category=bento_category(tags, kind),
+            id=f"{src.name}:{entry}", name=display, library=coll, tags=[*tags, f"type:{kind}"], category=bento_category(tags, kind),
             sig_files=[yml], capture=lambda max_seconds, yml=yml, ref=src.ref_midi: capture(yml, ref, max_seconds),
         ))
     notes = [f"{len(missing)} of the selected presets have no config yet (not scanned): e.g. {', '.join(missing[:3])}"] if missing else []

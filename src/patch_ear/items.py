@@ -36,6 +36,7 @@ class Item:
     tags: list[str] = field(default_factory=list)
     capture: Callable[[float], Measured] | None = None  # for presets that need work to get audio (render, mapping)
     sig_files: list[Path] = field(default_factory=list)  # what to stat for change detection when there is no `files`
+    library: str = ""  # the library the preset comes from (e.g. a Deluge collection); empty = the source's name
 
 
 def spread(files: list, n: int = MAX_AVERAGED) -> list:

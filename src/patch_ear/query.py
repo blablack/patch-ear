@@ -15,7 +15,7 @@ def _value(row: dict, key: str) -> float:
 
 def summarize(row: dict, full: bool = False) -> dict:
     out = {
-        "id": row["id"], "name": row["name"], "category": row["category"], "source": row["source"],
+        "id": row["id"], "name": row["name"], "library": row.get("library", ""), "category": row["category"], "source": row["source"],
         "tags": row.get("tags", []), "labels": row["labels"],
         "grit_pct": round(row["pct"]["grit"]), "weight_pct": round(row["pct"]["weight"]),
         "centroid_hz": round(row["features"]["centroid_hz"]),
@@ -30,7 +30,7 @@ def summarize(row: dict, full: bool = False) -> dict:
     return out
 
 
-def search(rows, filters=None, sort_by="grit", descending=True, limit=15, tag=None):
+def search(rows, filters=None, sort_by="grit", descending=True, limit=15, tag=None, library=None):
     """filters: {feature_or_score: [min|None, max|None]} on raw feature values (scores are 0-100)."""
     for key in (filters or {}):
         if key not in SORTABLE:
@@ -40,6 +40,8 @@ def search(rows, filters=None, sort_by="grit", descending=True, limit=15, tag=No
     out = []
     for r in rows:
         if tag and tag.lower() not in (t.lower() for t in r.get("tags", [])):
+            continue
+        if library and library.lower() not in r.get("library", "").lower():
             continue
         ok = True
         for key, (lo, hi) in (filters or {}).items():

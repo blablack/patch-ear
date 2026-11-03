@@ -236,8 +236,10 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
                 emit("cancelled")
                 return
             sig = _signature(item)
+            lib = item.library or src.name
             if have.get(item.id) == sig:
                 counts["unchanged"] += 1
+                conn.execute("UPDATE patches SET library=? WHERE id=? AND library!=?", (lib, item.id, lib))  # backfill without re-measuring
                 emit("item", source=src.name, name=item.name, state="unchanged")
                 continue
             try:
@@ -253,7 +255,7 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
             catalogue.upsert(conn, dict(
                 id=item.id, name=item.name, source=src.name, source_kind=src.type, category=item.category or src.category,
                 path=str(path), representative=mode, mtime=sig[0], size=sig[1], features=feats,
-                tags=item.tags, n_samples=n_samples,
+                tags=item.tags, n_samples=n_samples, library=lib,
             ))
             counts["analysed"] += 1
             if counts["analysed"] % 50 == 0:
