@@ -158,7 +158,7 @@ function editSource(index, plugins) {
     plugin: h("input", { value: cur.plugin || "", placeholder: "/home/you/.clap/u-he/Diva.clap" }),
     category: h("input", { value: cur.category, list: "cats" }),
     ref: h("input", { type: "number", min: 0, max: 127, value: cur.ref_midi ?? 36 }),
-    list: h("input", { value: cur.only_list || "", placeholder: "optional: text file, one patch path per line" }),
+    list: h("input", { value: cur.only_list || "", placeholder: "optional subset: text file, one config path per line (* allowed)" }),
   };
   f.type.value = cur.type;
   const help = h("div", { class: "help" }), refBox = h("div", {}, h("label", {}, "Reference note (MIDI number; 36 = C1, 48 = C2, 60 = C4)"), f.ref,

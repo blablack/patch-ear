@@ -8,7 +8,6 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
 
@@ -18,7 +17,7 @@ import soundfile as sf
 from . import catalogue
 from .config import Config, SourceConfig
 from .features import EXTRA, FEATURES, extract, load, measured_midi
-from .items import AVERAGE, REPRESENTATIVE, SINGLE, Item, Measured, bento_category, pick_at_pitch, spread
+from .items import AVERAGE, REPRESENTATIVE, SINGLE, Item, Measured, spread
 
 Event = Callable[..., None]
 
@@ -50,79 +49,10 @@ def _common_prefix_len(names: list[str]) -> int:
     return i + 1 if i > 0 else 0
 
 
-# ---------------- Bento patch.xml folders ----------------
-
-def _norm_bento(path: str) -> str:
-    p = path.strip().replace("\\", "/")
-    return p.removeprefix("UserPatches/")
-
-
-def read_patchindex(path: Path) -> dict[str, list[str]]:
-    if not path.is_file():
-        return {}
-    root = ET.parse(path).getroot()
-    return {_norm_bento(e.get("path", "")): [t.text for t in e.findall("tag") if t.text] for e in root.findall("patch")}
-
-
-def read_list(path: Path) -> set[str]:
-    return {_norm_bento(line) for line in path.read_text().splitlines() if line.strip() and not line.startswith("#")}
-
-
-def _bento_rep(patch: Path, wavs: list[Path], ref_midi: int, max_seconds: float = 3.0) -> Path:
-    """Sample at the reference pitch (see items.pick_at_pitch); labels come from the rootnote in patch.xml."""
-    try:
-        roots = {}
-        for p in ET.parse(patch / "patch.xml").getroot().iter("params"):
-            if p.get("filename") and p.get("rootnote"):
-                roots[p.get("filename")] = int(p.get("rootnote"))
-        known = [(roots[w.name], w) for w in wavs if w.name in roots]
-        if not known:
-            return wavs[len(wavs) // 2]
-
-        def probe(path: Path) -> float | None:
-            chans, sr, _ = load(path, max_seconds)
-            return measured_midi(chans, sr)
-
-        return pick_at_pitch(known, ref_midi, probe)
-    except (ET.ParseError, ValueError):
-        return wavs[len(wavs) // 2]
-
-
-def _bento_items(src: SourceConfig) -> list[Item]:
-    root = src.path
-    tags = read_patchindex(root / "patchindex.xml")
-    only = read_list(src.only_list) if src.only_list else None
-    if src.only_list and not src.only_list.is_file():
-        raise FileNotFoundError(f"only_list not found: {src.only_list}")
-    out = []
-    for area in sorted(d for d in root.iterdir() if d.is_dir()):
-        for patch in sorted(d for d in area.iterdir() if (d / "patch.xml").is_file()):
-            rel = f"{area.name}/{patch.name}"
-            if only is not None and rel not in only:
-                continue
-            wavs = sorted(w for w in patch.iterdir() if w.suffix.lower() == ".wav" and w.name.lower() != "preview.wav")
-            if not wavs:
-                continue
-            t = tags.get(rel, [])
-            kind = {"SampInst": "instrument", "OneShots": "kit", "Wavetable": "wavetable", "Granular": "granular"}.get(area.name, area.name.lower())
-            # `type:` tags say what the audio file IS: time-based measures mean little for a single-cycle wavetable
-            common = dict(id=f"{src.name}:{rel}", name=patch.name, n_samples=len(wavs), tags=[*t, f"type:{kind}"],
-                          category=bento_category(t, area.name))
-            if area.name == "OneShots":  # a kit: its character is the average over its hits
-                out.append(Item(files=spread(wavs), mode=AVERAGE, **common))
-            elif area.name == "SampInst":
-                out.append(Item(files=[_bento_rep(patch, wavs, src.ref_midi)], mode=REPRESENTATIVE if len(wavs) > 1 else SINGLE, **common))
-            else:  # Wavetable, Granular: one file
-                out.append(Item(files=[wavs[0]], **common))
-    return out
-
-
 # ---------------- generic libraries ----------------
 
 def items_for(src: SourceConfig) -> list[Item]:
     """Every catalogue row the source should produce."""
-    if src.type == "bento":
-        return _bento_items(src)
     root, wavs = src.path, _wavs(src.path)
     rel = lambda p: p.relative_to(root)  # noqa: E731
 
@@ -159,7 +89,7 @@ def items_for(src: SourceConfig) -> list[Item]:
 
 def plan_source(src: SourceConfig) -> tuple[list[Item], list[str]]:
     """(items, notes) for a source; notes are things worth telling the user (e.g. selected presets with no config)."""
-    if src.type == "deluge":
+    if src.type == "press":
         from . import press
 
         return press.plan(src)
@@ -218,7 +148,7 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
             continue
         try:
             items, notes = plan_source(src)
-        except (OSError, ET.ParseError, RuntimeError) as e:
+        except (OSError, RuntimeError) as e:
             emit("source_skip", source=src.name, reason=str(e))
             continue
         for n in notes:

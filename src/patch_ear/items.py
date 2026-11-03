@@ -32,11 +32,11 @@ class Item:
     files: list[Path] = field(default_factory=list)  # measured files: one, or several to average
     mode: int = SINGLE
     n_samples: int = 1  # samples in the preset overall
-    category: str | None = None  # overrides the source's category (e.g. from Bento tags)
+    category: str | None = None  # overrides the source's category (e.g. from the library's own tags)
     tags: list[str] = field(default_factory=list)
     capture: Callable[[float], Measured] | None = None  # for presets that need work to get audio (render, mapping)
     sig_files: list[Path] = field(default_factory=list)  # what to stat for change detection when there is no `files`
-    library: str = ""  # the library the preset comes from (e.g. a Deluge collection); empty = the source's name
+    library: str = ""  # the library the preset comes from (the folder under the Configs root); empty = the source's name
 
 
 def spread(files: list, n: int = MAX_AVERAGED) -> list:
@@ -45,10 +45,10 @@ def spread(files: list, n: int = MAX_AVERAGED) -> list:
     return [files[int(i)] for i in np.linspace(0, len(files) - 1, n)]
 
 
-def bento_category(tags: list[str], area: str) -> str:
+def pick_category(tags: list[str], fallback: str) -> str:
     """'Synth' is the generic tag; prefer a more specific one when the patch has several."""
     specific = [t for t in tags if t != "Synth"]
-    return specific[0] if specific else (tags[0] if tags else area)
+    return specific[0] if specific else (tags[0] if tags else fallback)
 
 
 def pick_at_pitch(cands: list[tuple[int, T]], ref_midi: int, probe: Callable[[T], float | None]) -> T:

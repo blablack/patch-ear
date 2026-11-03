@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS patches (
     mtime REAL NOT NULL,
     size INTEGER NOT NULL,
     features TEXT NOT NULL,       -- JSON
-    tags TEXT NOT NULL DEFAULT '[]',   -- JSON list (e.g. Bento patchindex tags)
+    tags TEXT NOT NULL DEFAULT '[]',   -- JSON list (e.g. Bass, Pad, Drum)
     n_samples INTEGER NOT NULL DEFAULT 1,  -- samples in the preset; features are one sample's or the average of several
-    library TEXT NOT NULL DEFAULT ''       -- the library the preset comes from (a Deluge collection, or the source's name)
+    library TEXT NOT NULL DEFAULT ''       -- the library the preset comes from (the first folder under the Configs root, or the source name)
 );
 CREATE INDEX IF NOT EXISTS idx_patches_category ON patches(category);
 """

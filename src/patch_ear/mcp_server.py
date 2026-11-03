@@ -39,7 +39,7 @@ def search_patches(category: str | None = None, tag: str | None = None, library:
                    sort_by: str = "grit", descending: bool = True, limit: int = 15) -> list[dict]:
     """Rank patches by measured audio character, within a category (percentiles are per category) and/or a tag.
 
-    category: the primary category (for Bento patches: the most specific patchindex tag, e.g. Bass, Pad, Drum, Atmosphere).
+    category: the primary category (the most specific tag, e.g. Bass, Pad, Drum, Atmosphere).
     tag: any of a patch's tags (a patch can have several, e.g. Synth + Lead).
 
     library: the library a preset comes from (case-insensitive substring, e.g. "drumtrax"); list_categories shows them.

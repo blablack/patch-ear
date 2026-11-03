@@ -24,7 +24,7 @@ patch-ear = "patch_ear.cli:main"
 patch-ear-mcp = "patch_ear.mcp_server:main"
 
 [project.optional-dependencies]
-# Reading patch-press scan configs (type "deluge"): library/Kontakt/Bitwig/wavetable audio and CLAP/VST3 renders.
+# Reading patch-press scan configs (type "press"): library/Kontakt/Bitwig/wavetable audio and CLAP/VST3 renders.
 # Install with `uv sync --extra press`. Same editable sibling checkout that prepare-sd-cards uses.
 press = ["patch-press"]
 

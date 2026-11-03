@@ -22,7 +22,7 @@ class SourceType:
     analyzable: bool = True
     plugin: bool = False  # needs a plugin binary + a preset folder
     ref_midi: bool = False  # picks one representative sample per preset, nearest this MIDI note
-    has_list: bool = False  # supports `only_list` (a text file restricting which patches are analysed)
+    has_list: bool = False  # supports `only_list` (a text file restricting which presets are analysed)
     auto_category: bool = False  # category comes from the data itself, so the field is optional
 
 
@@ -42,17 +42,13 @@ SOURCE_TYPES: list[SourceType] = [
     SourceType("kit", "Kit library",
                "A folder per kit with instrument subfolders inside (Just Add Drums style). A kit's row is the average over its hits. "
                "Like scan-library --type kit."),
-    SourceType("bento", "Bento patches (patch.xml folders)",
-               "A 1010music Bento UserPatches folder, e.g. patch-press output. Categories come from patchindex.xml tags; "
-               "multisamples are measured at the reference pitch (pitch-tracked, since libraries label notes inconsistently), kits as the average of their hits. "
-               "Optionally restrict it to a list of patch paths (e.g. what actually ships).",
-               ref_midi=True, has_list=True, auto_category=True),
     SourceType("wavetable", "Wavetables",
                "Serum-format wavetables (2048-sample frames). Like scan-wavetables."),
-    SourceType("deluge", "Deluge selection (patch-press configs)",
-               "The presets listed in a Deluge selection (e.g. DELUGE_PATCHES), found through patch-press's scan configs "
-               "(output/Configs) and measured via its own adapters: library, Kontakt/Bitwig maps, wavetables, and CLAP/VST3 "
-               "presets rendered one note each. Needs `uv sync --extra press`. Categories come from patch-press's tag rules.",
+    SourceType("press", "patch-press configs",
+               "A patch-press Configs folder (<library>/<subfolders>/<preset>.yaml): the whole library, whatever the preset is made of. "
+               "Audio comes from patch-press's own adapters: library, Kontakt/SFZ/Bitwig maps, wavetables, and CLAP/VST3 presets "
+               "rendered one note each. The first folder is the library. Optionally restrict it to a subset file (config paths "
+               "without .yaml, `*` allowed). Needs `uv sync --extra press`. Categories come from patch-press's tag rules.",
                ref_midi=True, has_list=True, auto_category=True),
     SourceType("bitwig", "Bitwig .multisample",
                "Bitwig multisample libraries (ZIP + XML). Configuration is stored; the analyzer does not read them yet.",

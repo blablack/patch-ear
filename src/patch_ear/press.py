@@ -1,16 +1,19 @@
-"""patch-press scan configs as a patch-ear source (type "deluge").
+"""patch-press scan configs as a patch-ear source (type "press").
 
 patch-press already knows how to get audio out of every kind of source (library folders, Kontakt/SFZ maps, Bitwig
-multisamples, wavetables, CLAP/VST3 presets). Re-using its adapters means patch-ear measures exactly the audio the
-device build would use, and can render plugin presets (one note each) without a card or a build.
+multisamples, wavetables, CLAP/VST3 presets). Re-using its adapters means patch-ear measures the audio patch-press
+would export, and can render plugin presets (one note each) without building anything for a device.
+
+A source points at a patch-press Configs tree: `<root>/<library>/<subfolders>/<preset>.yaml`. The first folder is the
+library; every config under it is a preset. Nothing here knows about any device.
 
 Requires the `press` extra:  uv sync --extra press
 """
 
 from __future__ import annotations
 
-import re
 from dataclasses import replace
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import numpy as np
@@ -18,10 +21,13 @@ import yaml
 
 from .config import SourceConfig
 from .features import extract, measured_midi
-from .items import AVERAGE, REPRESENTATIVE, SINGLE, Item, Measured, bento_category, pick_at_pitch, spread
+from .items import AVERAGE, REPRESENTATIVE, SINGLE, Item, Measured, pick_category, pick_at_pitch, spread
 
 HOLD_S, TOTAL_S = 4.0, 5.5  # a plugin note: held, then its tail; enough to measure decay and movement
 PROBE_S = 3.0
+UNSUPPORTED = {"granular"}  # source types the adapters here cannot turn into audio
+
+_Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 
 
 def available() -> str | None:
@@ -29,88 +35,67 @@ def available() -> str | None:
     try:
         import patch_press  # noqa: F401
     except ImportError:
-        return "type 'deluge' needs patch-press: run `uv sync --extra press`"
+        return "type 'press' needs patch-press: run `uv sync --extra press`"
     return None
 
 
-def read_lines(path: Path) -> list[str]:
-    return [ln.strip() for ln in path.read_text().splitlines() if ln.strip() and not ln.startswith("#")]
+def read_patterns(path: Path) -> list[str]:
+    """Lines of a subset file: config paths relative to the Configs root, without `.yaml`; `*` and `?` match."""
+    return [ln.strip().removesuffix(".yaml") for ln in path.read_text().splitlines() if ln.strip() and not ln.startswith("#")]
 
 
-def _field(text: str, field: str) -> str:
-    """One scalar from a config's `output:` block (same reading rule prepare-sd-cards uses)."""
-    inside = False
-    for line in text.splitlines():
-        if line.rstrip() == "output:":
-            inside = True
-            continue
-        if inside:
-            if line and not line[0].isspace():
-                break
-            m = re.match(rf'^\s+{field}:\s*"?(?P<v>.*?)"?\s*$', line)
-            if m:
-                return m.group("v")
-    return ""
-
-
-def index_configs(root: Path) -> dict[str, Path]:
-    """Deluge identity ('SYNTHS|KITS/<collection>/<subfolder>/<name>') -> the config that builds it.
-
-    The identity is exactly what patch-press's DelugeExporter derives from the config's output name/subfolder, and the
-    collection is the config's top folder under `root`. Whether it lands in SYNTHS or KITS is decided at export time, so
-    both are indexed and the caller's selection list picks."""
-    from patch_press.config.schema import OutputConfig
-    from patch_press.io.exporters import get_exporter
-
-    exporter, virtual = get_exporter("deluge"), Path("/_deluge")
-    index: dict[str, Path] = {}
-    for yml in sorted(root.rglob("*.yaml")):
-        parts = yml.relative_to(root).parts
-        if len(parts) < 2:
-            continue
-        text = yml.read_text()
-        out = OutputConfig(name=_field(text, "name") or yml.stem, subfolder=_field(text, "subfolder"), folder=_field(text, "folder"))
-        for p in exporter.expected_outputs(out, virtual / parts[0]):
-            rel = str(p.relative_to(virtual))
-            if rel.lower().endswith(".xml"):
-                index.setdefault(rel[:-4], yml)
-    return index
+def _kind(cfg: dict) -> str:
+    """kit | wavetable | instrument, from the config itself (no device involved)."""
+    source = cfg.get("source") or {}
+    if source.get("type") == "wavetable":
+        return "wavetable"
+    if cfg.get("profile") == "drums" or source.get("drumkit") or source.get("files"):
+        return "kit"
+    return "instrument"
 
 
 def plan(src: SourceConfig) -> tuple[list[Item], list[str]]:
-    """Items for every selected preset that has a config, plus notes about the ones that don't."""
+    """Items for every config under the root (or the subset in `only_list`), plus notes about what was left out."""
     why = available()
     if why:
         raise RuntimeError(why)
-    if not src.only_list:
-        raise RuntimeError("type 'deluge' needs only_list (the selection, e.g. DELUGE_PATCHES): the config alone does not say SYNTHS or KITS")
     from patch_press.io.exporters.bento_index import derive_tags
     from patch_press.model.sample import Category
 
-    index = index_configs(src.path)
+    patterns = read_patterns(src.only_list) if src.only_list else None
+    if src.only_list and not src.only_list.is_file():
+        raise FileNotFoundError(f"only_list not found: {src.only_list}")
     items: list[Item] = []
-    missing: list[str] = []
-    for entry in read_lines(src.only_list):
-        yml = index.get(entry)
-        if yml is None:
-            missing.append(entry)
+    unsupported: dict[str, int] = {}
+    matched = set()
+    for yml in sorted(src.path.rglob("*.yaml")):
+        parts = yml.relative_to(src.path).with_suffix("").parts
+        if len(parts) < 2:  # a config directly in the root has no library
             continue
-        parts = entry.split("/")
-        root, coll, sub, name = parts[0], parts[1], parts[2:-1], parts[-1]
-        stype = ((yaml.safe_load(yml.read_text()) or {}).get("source") or {}).get("type", "")
-        if root == "KITS":
-            cat, kind = Category.DRUM, "kit"
-        elif stype == "wavetable":
-            cat, kind = Category.WAVETABLE, "wavetable"
-        else:
-            cat, kind = Category.SYNTH, "instrument"
+        rel = "/".join(parts)
+        if patterns is not None:
+            hits = [pt for pt in patterns if fnmatchcase(rel, pt)]
+            if not hits:
+                continue
+            matched.update(hits)
+        cfg = yaml.load(yml.read_text(), Loader=_Loader) or {}
+        stype = (cfg.get("source") or {}).get("type", "")
+        if stype in UNSUPPORTED:
+            unsupported[stype] = unsupported.get(stype, 0) + 1
+            continue
+        kind = _kind(cfg)
+        coll, sub = parts[0], list(parts[1:-1])
+        name = (cfg.get("output") or {}).get("name") or parts[-1]
+        cat = {"kit": Category.DRUM, "wavetable": Category.WAVETABLE}.get(kind, Category.SYNTH)
         tags = derive_tags(cat, coll, sub, name)
-        display = " / ".join([coll, *sub[-1:], name])
         items.append(Item(
-            id=f"{src.name}:{entry}", name=display, library=coll, tags=[*tags, f"type:{kind}"], category=bento_category(tags, kind),
+            id=f"{src.name}:{rel}", name=" / ".join([coll, *sub[-1:], name]), library=coll,
+            tags=[*tags, f"type:{kind}"], category=pick_category(tags, kind),
             sig_files=[yml], capture=lambda max_seconds, yml=yml, ref=src.ref_midi: capture(yml, ref, max_seconds),
         ))
-    notes = [f"{len(missing)} of the selected presets have no config yet (not scanned): e.g. {', '.join(missing[:3])}"] if missing else []
+    notes = [f"{n} {t} configs skipped (cannot be measured yet)" for t, n in unsupported.items()]
+    if patterns is not None:
+        notes += [f"subset pattern matches nothing: {pt}" for pt in patterns if pt not in matched]
     return items, notes
 
 

@@ -1,0 +1,7 @@
+# Small first slice of the library: a few presets from each kind of source.
+Diva/1 BASS/HS_[BC]*
+Zebra2/1 Bassics/HS_[FJ]*
+Just Add Drums/Subliminal Verses/0[1-3]*
+Samples from Mars/arp_omni_from_mars/*
+Liam Wavetables/TIDYB06*
+Orchestral Tools/Orchestral Brass/*

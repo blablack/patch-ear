@@ -6,7 +6,7 @@ path = "catalogue.db"   # relative paths resolve from this file's folder
 [analysis]
 max_seconds = 8.0       # only the first N seconds of each file are analysed
 
-# type: multisample | filename | oneshots | drumkit | kit | wavetable   (analysable)
+# type: press | multisample | filename | oneshots | drumkit | kit | wavetable   (analysable)
 #       bitwig | clap | vst3                                            (stored, analyser not built yet)
 [[source]]
 name = "essence-bass"
@@ -21,3 +21,12 @@ ref_midi = 36           # multisample/filename: sample nearest this note represe
 # plugin = "~/.clap/u-he/Diva.clap"
 # path = "~/.u-he/Diva/Presets/Diva/1 BASS"
 # category = "bass"
+
+# A whole patch-press Configs tree (<library>/<subfolders>/<preset>.yaml): library samples, Kontakt/SFZ/Bitwig maps,
+# wavetables and CLAP/VST3 presets, all measured through patch-press's own adapters. Needs `uv sync --extra press`.
+# [[source]]
+# name = "library"
+# type = "press"
+# path = "/path/to/prepare-sd-cards/output/Configs"
+# only_list = "subset.txt"   # optional: config paths without .yaml, one per line, `*` allowed (e.g. "Diva/1 BASS/*")
+# ref_midi = 45              # real pitch to measure at (MIDI 45 = A2, 110 Hz)
