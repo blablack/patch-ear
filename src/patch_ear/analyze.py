@@ -57,12 +57,27 @@ _CATEGORY_WORDS = {"bass": "Bass", "lead": "Lead", "pad": "Pad", "pluck": "Pluck
                    "strings": "Strings", "brass": "Brass", "fx": "FX", "vocal": "Vocal", "choir": "Vocal"}
 
 
+_NOTE_END = re.compile(r"^(?P<base>.+?)[_\- ](?P<note>[A-G][#b]?-?\d?)$")  # Calm_C2, Calm_D
+_MIDI_END = re.compile(r"^(?P<base>.+?)[_\- ](?P<midi>\d{2,3})$")  # SFM-MicroMoog1-24
+
+
+def _split_note(stem: str) -> tuple[str, str] | None:
+    """(preset base, note) when the name ends in a note: '<patch>-048_c2', '<patch>_C#2', '<patch>-24' (21..108)."""
+    for pat, key in ((_NOTE_SUFFIX, "midi"), (_NOTE_END, "note"), (_MIDI_END, "midi")):
+        m = pat.match(stem)
+        if m and (pat is not _MIDI_END or 21 <= int(m["midi"]) <= 108):
+            return m["base"], m[key]
+    return None
+
+
 def _is_multisample(files: list[Path]) -> bool:
-    """Several files whose names carry a note (MIDI number + name, or a name like C#3)."""
+    """Several files whose names carry a note (see _split_note), or contain one (048_c2, C#3) somewhere."""
     if len(files) < 3:
         return False
-    noted = sum(1 for p in files if _MIDI_ANYWHERE.search(p.stem) or _NOTE_TOKEN.search(p.stem))
-    return noted / len(files) >= 0.6
+    parsed = [_split_note(p.stem) for p in files]
+    if sum(1 for x in parsed if x) / len(files) >= 0.6 and len({x[1] for x in parsed if x}) >= 3:
+        return True
+    return sum(1 for p in files if _MIDI_ANYWHERE.search(p.stem) or _NOTE_TOKEN.search(p.stem)) / len(files) >= 0.6
 
 
 def _guess_category(parts: tuple[str, ...], fallback: str) -> str:
@@ -81,24 +96,38 @@ def _library_items(src: SourceConfig) -> list[Item]:
     root, fallback = src.path, src.category if src.category != "auto" else "Synth"
     kits: dict[Path, list[Path]] = {}
     folders: dict[Path, list[Path]] = {}
+    base = root.parent if _KIT_DIR.search(root.name) else root  # a source pointed AT the "Kits" folder
     for p in _wavs(root):
-        parts = p.relative_to(root).parent.parts
+        parts = p.relative_to(base).parent.parts
         i = next((i for i, part in enumerate(parts) if _KIT_DIR.search(part)), None)
         if i is not None:
-            kits.setdefault(root.joinpath(*parts[: min(i + 2, len(parts))]), []).append(p)
+            # the folder just below "Kits" is the kit, unless its children are themselves kits ("CR78/01. Kit 1")
+            depth = i + 3 if len(parts) > i + 2 and _KIT_DIR.search(parts[i + 2]) else min(i + 2, len(parts))
+            kits.setdefault(base.joinpath(*parts[:depth]), []).append(p)
         else:
             folders.setdefault(p.parent, []).append(p)
     out: list[Item] = []
     kit_names = [k.name for k in kits]
     for k, files in sorted(kits.items()):
-        rel = k.relative_to(root)
+        rel = k.relative_to(root.parent if _KIT_DIR.search(root.name) else root)
         name = k.name if kit_names.count(k.name) == 1 else f"{k.parent.name} / {k.name}"
         out.append(Item(f"{src.name}:{rel}", name, spread(files), AVERAGE, len(files), category="Drum", tags=["type:kit"]))
     for f, files in sorted(folders.items()):
         rel = f.relative_to(root)
         if _is_multisample(files):
-            out.append(Item(f"{src.name}:{rel}", f.name if str(rel) != "." else root.name, [_pick(files, src.ref_midi)],
-                            REPRESENTATIVE, len(files), category=_guess_category(rel.parts, fallback), tags=["type:instrument"]))
+            groups: dict[str, list[Path]] = {}  # several presets in one folder, told apart by "<patch>-<midi>_<note>" names
+            for p in files:
+                parsed = _split_note(p.stem)
+                groups.setdefault(parsed[0] if parsed else p.stem, []).append(p)
+            cat = _guess_category(rel.parts, fallback)
+            if len(groups) > 1 and any(len(g) > 1 for g in groups.values()):
+                cut = _common_prefix_len(list(groups))
+                for base, g in sorted(groups.items()):
+                    out.append(Item(f"{src.name}:{rel / base}", base[cut:] or base, [_pick(g, src.ref_midi)],
+                                    REPRESENTATIVE if len(g) > 1 else SINGLE, len(g), category=cat, tags=["type:instrument"]))
+            else:
+                out.append(Item(f"{src.name}:{rel}", f.name if str(rel) != "." else root.name, [_pick(files, src.ref_midi)],
+                                REPRESENTATIVE, len(files), category=cat, tags=["type:instrument"]))
         else:
             for p in files:
                 out.append(Item(f"{src.name}:{p.relative_to(root)}", p.stem, [p], category=_guess_category(rel.parts, fallback), tags=["type:oneshot"]))

@@ -35,7 +35,13 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
   patch-press `derive_tags` (a 15-tag vocabulary: Bass, Pad, Drum, ...; "Synth" is generic so the more specific tag wins, all tags kept).
   Previews of rendered audio go to previews/ next to the catalogue. Change detection stats the config yaml only (library edits need
   --force). Run with `uv run --extra press patch-ear analyze`.
-- `data/patch-ear.toml` currently has two `library` sources (drumtrax Kits, arp_omni) as a smoke test.
+- `data/patch-ear.toml` (gitignored) was reverse-engineered from the Bento/Deluge shipping lists: 45 `library`/`kit` sources over the NAS
+  (kits, synth multisamples, Rastsound, Wave Alchemy, Just Add Drums) + one `press` source (`data/plugins.txt`: Diva/Zebra2/ZebraHZ).
+  Dry run (no audio): ~4,900 presets. `essential_wav_24bit` Synths are NOT listed (duplicates of the standalone libs); its Drums/02. Kits IS
+  (holds kits the standalone folders lack). Not covered yet: wavetables (Liam, Polyend), granular, Bitwig .multisample (Orchestral Tools, Electric Keys).
+  Name detection also handles `<patch>_C2`, `<patch>-24` (MIDI number) and several presets in one folder (grouped by the shared base name).
+  When a source is pointed AT a "Kits" folder, that folder counts as the Kits level. Known rough spot: some `essential-kits` machine folders
+  become one kit when their sub-kits aren't named "...Kit".
 
 ## Commands
 - `uv sync`; `uv run patch-ear analyze [--source X] [--force]`; `uv run patch-ear search bass --sort grit --filter centroid_hz::400`
