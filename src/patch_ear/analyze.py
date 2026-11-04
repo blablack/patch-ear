@@ -24,7 +24,7 @@ Event = Callable[..., None]
 
 # "<patch>-<midi>_<note>" e.g. carnage_amp-048_c2 / hollow_tube-a-036_c1
 _NOTE_SUFFIX = re.compile(r"^(?P<base>.+?)-(?P<midi>\d{2,3})_[a-g]#?-?\d+$", re.IGNORECASE)
-_MIDI_ANYWHERE = re.compile(r"(?<!\d)(\d{2,3})_[a-g]#?-?\d+(?!\d)", re.IGNORECASE)
+_MIDI_ANYWHERE = re.compile(r"(?<![A-Za-z0-9])(\d{2,3})_[a-g]#?-?\d+(?!\d)", re.IGNORECASE)  # not "SH101_E6"
 
 
 def _excluded(rel: Path, patterns: list[str]) -> bool:
@@ -39,13 +39,25 @@ def _wavs(root: Path, exclude: list[str] | None = None) -> list[Path]:
                   and not (exclude and _excluded(p.relative_to(root), exclude)))
 
 
+def _note_midi(stem: str) -> int | None:
+    """MIDI number from a file name: a number like '048_c2' / '-24', else a note name like 'D#7' (C3 = 60). None if there is none."""
+    m = _MIDI_ANYWHERE.search(stem)
+    if m:
+        return int(m[1])
+    parsed = _split_note(stem)
+    if parsed:
+        note = parsed[1]
+        if note.isdigit():
+            return int(note)
+        n = re.match(r"^([A-G])([#b]?)(-?\d)$", note)
+        if n:
+            return 12 * (int(n[3]) + 1) + _PITCH_CLASS[n[1]] + (1 if n[2] == "#" else -1 if n[2] == "b" else 0)
+    return None
+
+
 def _pick(files: list[Path], ref_midi: int) -> Path:
-    """Sample nearest ref_midi if file names carry MIDI numbers, else the middle file by name."""
-    scored = []
-    for p in files:
-        m = _MIDI_ANYWHERE.search(p.stem)
-        if m:
-            scored.append((abs(int(m[1]) - ref_midi), p.name, p))
+    """Sample nearest ref_midi when the names carry notes (MIDI number or note name), else the middle file by name."""
+    scored = [(abs(m - ref_midi), p.name, p) for p in files if (m := _note_midi(p.stem)) is not None]
     return min(scored)[2] if scored else files[len(files) // 2]
 
 
