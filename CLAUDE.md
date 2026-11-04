@@ -22,6 +22,11 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
   sample); anything else -> every file is a one-shot. NOTHING is filtered out (hits and loops included): point it only at folders you want.
   `library` = the source folder's name unless the source sets `library`. Category from path words (bass, pad, ...) else the source's `category`
   else Synth. Libraries with no "Kits" folder (Just Add Drums) should use the explicit `kit`/`drumkit` types.
+- Shape is DECLARED BY HAND per source, not guessed: vendors name files too differently for `library` to cover (it kept needing regexes).
+  Use `multisample` (folder = preset), `filename` (several patches in one folder, told apart by the name before the note; `_split_note`
+  handles `-048_c2`, ` C3`, `_C2_0002` round-robin takes, `-AB12` export tags, a leading MIDI number), `oneshots`, `kit`. `exclude = [...]`
+  (folder names / fnmatch, relative to the source) leaves out loops, FX, phrases: only what ships as a preset is scanned (see prepare-sd-cards
+  `_SFM_SKIP`). Category comes from path words unless the source sets one. Kit previews are the measured hits concatenated (`_kit_preview`).
 - Explicit types mirror patch-press library shapes: multisample (folder = preset), filename (`<patch>-<midi>_<note>` in one folder),
   oneshots, drumkit, kit, wavetable; plus bitwig/clap/vst3 (config stored, analyser not built). Old `group=` configs are mapped.
   NO source type is device-specific (the old `deluge`/`bento` types were removed, #16).
@@ -64,7 +69,8 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 - DIMENSIONS (20 + f0_hz, see features.py docstring): time/dynamics (duration attack decay sustain_db rms crest), spectrum (centroid rolloff
   low_ratio hi_ratio flatness zcr), pitch/harmonics (pitch_clarity inharmonic_ratio harm_tilt_db), modulation (roughness = 20-150 Hz beating
   excluding the note's own periodicity; lfo_rate/depth = slow pulsing, needs >=3 cycles + a clear peak), evolution (timbre_movement), stereo.
-  Added 2026-11-02; ONLY grit has been checked against the user's ears. The others were sanity-checked on names (bells -> inharmonic,
+  Added 2026-11-02; grit AND roughness have been checked against the user's ears (roughness 2026-11-04: extremes test on Bass,
+  top 5 and bottom 5 both confirmed; mid-range ordering not checked). The others were sanity-checked on names (bells -> inharmonic,
   sine piano -> low harmonic richness, wavetable morphs -> movement) and are NOT ear-validated. Decay/sustain use a 100 ms smoothed envelope.
   Pitch-dependent measures are meaningless for unpitched sounds (inharmonic_ratio=1, harm_tilt=0 by convention); time-based measures are
   meaningless for single-cycle wavetables (rows carry a `type:wavetable` tag; labels skip them). Rows also get type:instrument|kit|wavetable.

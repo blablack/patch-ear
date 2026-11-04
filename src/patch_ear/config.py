@@ -47,12 +47,15 @@ SOURCE_TYPES: list[SourceType] = [
                "you want. The library name is the folder's name unless you set one.", ref_midi=True, auto_category=True),
     SourceType("multisample", "Multisample library",
                "One subfolder = one preset (the notes of one instrument). Point at the folder whose subfolders are the presets. "
-               "Like patch-press scan-library --type multisample.", ref_midi=True),
+               "Like patch-press scan-library --type multisample. Category is read from the path words (bass, pad...) unless you set one.",
+               ref_midi=True, auto_category=True),
     SourceType("filename", "Multisample, flat folder",
-               "One folder holds many presets, told apart by file name: <patch>-<midi>_<note>.wav "
-               "(e.g. Wave Alchemy Essence bass oneshots).", ref_midi=True),
+               "One folder holds many presets, told apart by file name: the patch name followed by the note "
+               "(<patch>-<midi>_<note>.wav, <patch> C3.wav, <patch>_C2_0002.wav...). Category is read from the path words unless you set one.",
+               ref_midi=True, auto_category=True),
     SourceType("oneshots", "One-shots",
-               "Every loose file is its own preset (folders of single-note samples). Like scan-oneshots."),
+               "Every loose file is its own preset (folders of single-note samples). Like scan-oneshots. Category is read from the path "
+               "words unless you set one.", auto_category=True),
     SourceType("drumkit", "Drumkit (flat)",
                "Each folder holding loose hits is one kit (808 From Mars style). A kit's row is the average over its hits. "
                "Like scan-library --type drumkit."),
@@ -92,6 +95,7 @@ class SourceConfig:
     ref_midi: int = 36
     plugin: Path | None = None  # plugin binary, plugin types only
     only_list: Path | None = None  # text file, one patch path per line; others are ignored
+    exclude: list[str] = field(default_factory=list)  # folder names/paths (fnmatch, relative to `path`) to leave out: loops, FX, phrases...
     library: str = ""  # name shown as the preset's library; empty = the source folder's name
 
     @property
@@ -155,6 +159,7 @@ def parse(raw: dict, base: Path) -> Config:
             name=name, path=Path(s["path"]).expanduser(), category=str(s.get("category", "")).strip() or "auto", type=stype,
             ref_midi=int(s.get("ref_midi", 36)), plugin=Path(plugin).expanduser() if plugin else None,
             only_list=_rel(str(s.get("only_list", "")), base), library=str(s.get("library", "")).strip(),
+            exclude=[str(x).strip() for x in s.get("exclude", []) if str(x).strip()],
         ))
     return Config(catalogue=cat, max_seconds=float(raw.get("analysis", {}).get("max_seconds", 8.0)), sources=sources)
 
@@ -182,6 +187,8 @@ def normalize_raw(raw: dict) -> dict:
             item["plugin"] = str(s["plugin"]).strip()
         if str(s.get("library", "")).strip():
             item["library"] = str(s["library"]).strip()
+        if s.get("exclude"):
+            item["exclude"] = [str(x).strip() for x in s["exclude"] if str(x).strip()]
         if str(s.get("only_list", "")).strip():
             item["only_list"] = str(s["only_list"]).strip()
         out["source"].append(item)

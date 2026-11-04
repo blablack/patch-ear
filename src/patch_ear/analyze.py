@@ -5,6 +5,7 @@ Progress is reported through an `on_event(kind, **info)` callback so the CLI (tq
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import os
 import re
@@ -26,8 +27,16 @@ _NOTE_SUFFIX = re.compile(r"^(?P<base>.+?)-(?P<midi>\d{2,3})_[a-g]#?-?\d+$", re.
 _MIDI_ANYWHERE = re.compile(r"(?<!\d)(\d{2,3})_[a-g]#?-?\d+(?!\d)", re.IGNORECASE)
 
 
-def _wavs(root: Path) -> list[Path]:
-    return sorted(p for p in root.rglob("*") if p.suffix.lower() == ".wav" and not p.name.startswith("."))
+def _excluded(rel: Path, patterns: list[str]) -> bool:
+    """A folder is left out when a pattern (fnmatch, case-insensitive) matches one of its folder names or a leading path of it."""
+    parts = rel.parent.parts
+    heads = ["/".join(parts[: i + 1]).lower() for i in range(len(parts))]
+    return any(fnmatch.fnmatch(x, pat.lower()) for pat in patterns for x in (*heads, *(p.lower() for p in parts)))
+
+
+def _wavs(root: Path, exclude: list[str] | None = None) -> list[Path]:
+    return sorted(p for p in root.rglob("*") if p.suffix.lower() == ".wav" and not p.name.startswith(".")
+                  and not (exclude and _excluded(p.relative_to(root), exclude)))
 
 
 def _pick(files: list[Path], ref_midi: int) -> Path:
@@ -58,15 +67,33 @@ _CATEGORY_WORDS = {"bass": "Bass", "lead": "Lead", "pad": "Pad", "pluck": "Pluck
 
 
 _NOTE_END = re.compile(r"^(?P<base>.+?)[_\- ](?P<note>[A-G][#b]?-?\d?)$")  # Calm_C2, Calm_D
+_EXPORT_HASH = re.compile(r"-[A-Z0-9]{4}$")
+_ROUND_ROBIN = re.compile(r"[_\- ]\d{3,4}$")  # trailing take counter: _0002
 _MIDI_END = re.compile(r"^(?P<base>.+?)[_\- ](?P<midi>\d{2,3})$")  # SFM-MicroMoog1-24
+
+
+_PITCH_CLASS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+_LEADING_NUM = re.compile(r"^(\d{1,3})[_\- ]+(?=\S)")
+
+
+def _drop_midi_prefix(base: str, note: str) -> str:
+    """'100 Medium Muff OB' + 'E6' -> 'Medium Muff OB': a leading number that is the note's own MIDI number (either octave
+    convention, give or take a semitone of off-by-one) is per-file, so left in it would make every note its own preset."""
+    m, n = _LEADING_NUM.match(base), re.match(r"^([A-G])([#b]?)(-?\d)$", note)
+    if not (m and n):
+        return base
+    midi = 12 * (int(n[3]) + 1) + _PITCH_CLASS[n[1]] + (1 if n[2] == "#" else -1 if n[2] == "b" else 0)
+    return base[m.end():] if int(m[1]) in (midi - 13, midi - 12, midi - 11, midi - 1, midi, midi + 1, midi + 11, midi + 12, midi + 13) else base
 
 
 def _split_note(stem: str) -> tuple[str, str] | None:
     """(preset base, note) when the name ends in a note: '<patch>-048_c2', '<patch>_C#2', '<patch>-24' (21..108)."""
-    for pat, key in ((_NOTE_SUFFIX, "midi"), (_NOTE_END, "note"), (_MIDI_END, "midi")):
-        m = pat.match(stem)
-        if m and (pat is not _MIDI_END or 21 <= int(m["midi"]) <= 108):
-            return m["base"], m[key]
+    rr = _ROUND_ROBIN.sub("", stem)  # '<patch>_F#5_0002': a round-robin take of the same note belongs to the same preset
+    for s in dict.fromkeys((stem, rr, _EXPORT_HASH.sub("", stem))):  # '<patch>_C#0-MU9H': exporter's random tag after the note
+        for pat, key in ((_NOTE_SUFFIX, "midi"), (_NOTE_END, "note"), (_MIDI_END, "midi")):
+            m = pat.match(s)
+            if m and (pat is not _MIDI_END or 21 <= int(m["midi"]) <= 108):
+                return (_drop_midi_prefix(m["base"], m[key]) if key == "note" else m["base"]), m[key]
     return None
 
 
@@ -97,7 +124,7 @@ def _library_items(src: SourceConfig) -> list[Item]:
     kits: dict[Path, list[Path]] = {}
     folders: dict[Path, list[Path]] = {}
     base = root.parent if _KIT_DIR.search(root.name) else root  # a source pointed AT the "Kits" folder
-    for p in _wavs(root):
+    for p in _wavs(root, src.exclude):
         parts = p.relative_to(base).parent.parts
         i = next((i for i, part in enumerate(parts) if _KIT_DIR.search(part)), None)
         if i is not None:
@@ -140,11 +167,12 @@ def items_for(src: SourceConfig) -> list[Item]:
     """Every catalogue row the source should produce."""
     if src.type == "library":
         return _library_items(src)
-    root, wavs = src.path, _wavs(src.path)
+    root, wavs = src.path, _wavs(src.path, src.exclude)
     rel = lambda p: p.relative_to(root)  # noqa: E731
 
+    cat_of = lambda p: (src.category if src.category != "auto" else _guess_category(rel(p).parent.parts, "Synth")) if src.type == "oneshots" else None  # noqa: E731
     if src.type in ("oneshots", "wavetable"):
-        return [Item(f"{src.name}:{rel(p)}", p.stem, [p]) for p in wavs]
+        return [Item(f"{src.name}:{rel(p)}", p.stem, [p], category=cat_of(p)) for p in wavs]
 
     if src.type in ("drumkit", "kit"):
         # drumkit: a folder directly holding hits = one kit. kit: each first-level subfolder = one kit (hits nested inside).
@@ -158,11 +186,12 @@ def items_for(src: SourceConfig) -> list[Item]:
     if src.type == "filename":
         groups: dict[tuple[Path, str], list[Path]] = {}
         for p in wavs:
-            m = _NOTE_SUFFIX.match(p.stem)
-            groups.setdefault((p.parent, m["base"] if m else p.stem), []).append(p)
+            parsed = _split_note(p.stem)  # '<patch>-048_c2', '<patch> C3', '<patch>_C2_0002', ...
+            groups.setdefault((p.parent, parsed[0] if parsed else p.stem), []).append(p)
         cut = _common_prefix_len([b for _, b in groups])
         return [Item(f"{src.name}:{rel(folder) / base}", base[cut:] or base, [_pick(files, src.ref_midi)],
-                     REPRESENTATIVE if len(files) > 1 else SINGLE, len(files))
+                     REPRESENTATIVE if len(files) > 1 else SINGLE, len(files),
+                     category=src.category if src.category != "auto" else _guess_category(rel(folder).parts, "Synth"))
                 for (folder, base), files in sorted(groups.items())]
 
     # multisample: one folder (that directly holds WAVs) = one preset
@@ -170,7 +199,8 @@ def items_for(src: SourceConfig) -> list[Item]:
     for p in wavs:
         folders.setdefault(p.parent, []).append(p)
     return [Item(f"{src.name}:{rel(f)}", f.name if str(rel(f)) != "." else root.name, [_pick(files, src.ref_midi)],
-                 REPRESENTATIVE if len(files) > 1 else SINGLE, len(files))
+                 REPRESENTATIVE if len(files) > 1 else SINGLE, len(files),
+                 category=src.category if src.category != "auto" else _guess_category(rel(f).parts, "Synth"))
             for f, files in sorted(folders.items())]
 
 
@@ -219,6 +249,30 @@ def _preview(cfg: Config, item: Item, m: Measured) -> Path:
     return path
 
 
+def _kit_preview(cfg: Config, item: Item, max_seconds: float) -> Path:
+    """Audition file for a kit: the hits that were measured, in order, ~1 s each, so the ear hears what the numbers describe."""
+    parts, sr0 = [], 0
+    for f in item.files:
+        try:
+            chans, sr, _ = load(f, min(max_seconds, 1.0))
+        except Exception:
+            continue
+        sr0 = sr0 or sr
+        if sr != sr0:  # no resampler here; a rare odd file is left out of the preview only
+            continue
+        chans = np.atleast_2d(chans)
+        chans = np.repeat(chans, 2, axis=0) if chans.shape[0] == 1 else chans[:2]
+        n = int(sr * 1.0)
+        parts.append(np.pad(chans[:, :n], ((0, 0), (0, int(sr * 0.15)))))
+    if not parts:
+        return item.files[0]
+    d = cfg.catalogue.parent / "previews"
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / (hashlib.sha1(item.id.encode()).hexdigest()[:16] + ".wav")
+    sf.write(str(path), np.concatenate(parts, axis=1).T, sr0, subtype="PCM_16")
+    return path
+
+
 def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event: Event | None = None,
             cancelled: Callable[[], bool] = lambda: False, limit: int | None = None) -> None:
     emit = on_event or (lambda *a, **k: None)
@@ -264,7 +318,9 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
                     m = item.capture(cfg.max_seconds)
                     feats, path, mode, n_samples = m.features, _preview(cfg, item, m), m.mode, m.n_samples
                 else:
-                    feats, path, mode, n_samples = measure(item.files, cfg.max_seconds), item.files[0], item.mode, item.n_samples
+                    feats, path, mode, n_samples = measure(item.files, cfg.max_seconds), (
+                        _kit_preview(cfg, item, cfg.max_seconds) if item.mode == AVERAGE and len(item.files) > 1 else item.files[0]
+                    ), item.mode, item.n_samples
             except Exception as e:  # one bad file must not stop the run
                 counts["failed"] += 1
                 emit("item", source=src.name, name=item.name, state="failed", message=f"{item.name}: {type(e).__name__}: {e}")
