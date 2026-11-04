@@ -16,12 +16,10 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 - **State lives in one folder, the patch-ear home** (`config.home()`: `$PATCH_EAR_HOME`, else `./data`, gitignored): `patch-ear.toml`,
   `catalogue.db`, `previews/`, subset files. Relative paths in the config resolve from it. Library folders are absolute paths (NAS mounts);
   nothing refers to sibling repos. Cloud: mount a volume at the home folder and the library as a read-only mount. `-c`/`PATCH_EAR_CONFIG` override the file.
-- `library` type is the main route for raw libraries (no patch-press needed): point a source at a folder you want covered and the shape is
-  decided PER FOLDER (`analyze._library_items`): under a folder named "Kits"/"... Kit" -> the folder just below it is ONE kit (averaged over
-  <=24 hits, category Drum); a folder whose file names carry notes (`048_c2`, `C#3`; >=60%) -> ONE multisample preset (one representative
-  sample); anything else -> every file is a one-shot. NOTHING is filtered out (hits and loops included): point it only at folders you want.
-  `library` = the source folder's name unless the source sets `library`. Category from path words (bass, pad, ...) else the source's `category`
-  else Synth. Libraries with no "Kits" folder (Just Add Drums) should use the explicit `kit`/`drumkit` types.
+- `library` type (auto-detect) still exists for quick exploration of a raw folder: under "Kits"/"... Kit" -> the folder below is ONE kit
+  (averaged over <=24 hits, category Drum); a folder whose names carry notes (>=60%) -> ONE multisample; else every file is a one-shot.
+  It filters nothing and misreads unusual naming, so the shipped config does NOT use it for the synth packs (see below). `library` = the
+  source folder's name unless the source sets `library`.
 - Shape is DECLARED BY HAND per source, not guessed: vendors name files too differently for `library` to cover (it kept needing regexes).
   Use `multisample` (folder = preset), `filename` (several patches in one folder, told apart by the name before the note; `_split_note`
   handles `-048_c2`, ` C3`, `_C2_0002` round-robin takes, `-AB12` export tags, a leading MIDI number), `oneshots`, `kit`. `exclude = [...]`
