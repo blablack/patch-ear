@@ -309,7 +309,7 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
     conn = catalogue.connect(cfg.catalogue)
     have = {} if force else catalogue.known(conn)
 
-    plans: list[tuple[SourceConfig, list[Item]]] = []
+    plans: list[tuple[SourceConfig, list[Item], set[str]]] = []
     for src in cfg.sources:
         if only and src.name != only:
             continue
@@ -324,10 +324,10 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
             continue
         for n in notes:
             emit("source_note", source=src.name, note=n)
-        plans.append((src, items[:limit] if limit else items))
-    emit("plan", total=sum(len(i) for _, i in plans), sources={s.name: len(i) for s, i in plans})
+        plans.append((src, items[:limit] if limit else items, {i.id for i in items}))  # all_ids: prune against the full list, not the --limit slice
+    emit("plan", total=sum(len(i) for _, i, _ in plans), sources={s.name: len(i) for s, i, _ in plans})
 
-    for src, items in plans:
+    for src, items, all_ids in plans:
         emit("source_start", source=src.name, total=len(items))
         counts = {"analysed": 0, "unchanged": 0, "failed": 0}
         for item in items:
@@ -364,7 +364,7 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
             if counts["analysed"] % 50 == 0:
                 conn.commit()
             emit("item", source=src.name, name=item.name, state="analysed")
-        removed = catalogue.prune(conn, src.name, {i.id for i in items})
+        removed = catalogue.prune(conn, src.name, all_ids)
         conn.commit()
         emit("source_end", source=src.name, removed=removed, **counts)
     conn.close()

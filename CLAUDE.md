@@ -46,6 +46,9 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
   When a source is pointed AT a "Kits" folder, that folder counts as the Kits level. Known rough spot: some `essential-kits` machine folders
   become one kit when their sub-kits aren't named "...Kit".
 
+- **Shared render cache.** The `press` source's plugin renders go through patch-press's render cache, so a preset is rendered once across patch-ear and prepare-sd-cards builds. Set the location with the optional `[cache] dir = "..."` in `patch-ear.toml` (applied at config load; an explicit `PATCH_PRESS_CACHE_DIR` wins; it survives UI saves). HOLD_S/TOTAL_S/velocity come from `patch_press.cache.reference`, which the build also renders, so don't hard-code them here. The octave-corrected re-render is a different note and misses until something else renders it. WAV sources read files in place and don't use the cache.
+- `analyze --limit N` only measures the first N presets of each source; it prunes against the FULL list, so the rest of the catalogue is kept (it once wiped 145 plugin presets before this was fixed).
+
 ## Commands
 - `uv sync`; `uv run patch-ear analyze [--source X] [--force]`; `uv run patch-ear search bass --sort grit --filter centroid_hz::400`
 - MCP (Claude Desktop config): command `uv`, args `["--directory", "<abs path to patch-ear>", "run", "patch-ear-mcp"]`,

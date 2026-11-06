@@ -108,6 +108,7 @@ class Config:
     catalogue: Path
     max_seconds: float = 8.0
     sources: list[SourceConfig] = field(default_factory=list)
+    cache_dir: Path | None = None  # shared patch-press render/source cache; PATCH_PRESS_CACHE_DIR wins over this
 
 
 def default_raw() -> dict:
@@ -161,12 +162,19 @@ def parse(raw: dict, base: Path) -> Config:
             only_list=_rel(str(s.get("only_list", "")), base), library=str(s.get("library", "")).strip(),
             exclude=[str(x).strip() for x in s.get("exclude", []) if str(x).strip()],
         ))
-    return Config(catalogue=cat, max_seconds=float(raw.get("analysis", {}).get("max_seconds", 8.0)), sources=sources)
+    cache = str(raw.get("cache", {}).get("dir", "")).strip()
+    cache_dir = _rel(cache, base) if cache else None
+    return Config(catalogue=cat, max_seconds=float(raw.get("analysis", {}).get("max_seconds", 8.0)), sources=sources,
+                  cache_dir=Path(cache_dir) if cache_dir else None)
 
 
 def load_config(path: str | Path | None = None) -> Config:
     path = Path(path).expanduser() if path else default_config()
-    return parse(load_raw(path), path.resolve().parent)
+    cfg = parse(load_raw(path), path.resolve().parent)
+    if cfg.cache_dir:
+        # Read by patch_press.cache when the press source renders; an explicit env var wins.
+        os.environ.setdefault("PATCH_PRESS_CACHE_DIR", str(cfg.cache_dir))
+    return cfg
 
 
 def normalize_raw(raw: dict) -> dict:
@@ -176,6 +184,8 @@ def normalize_raw(raw: dict) -> dict:
         "analysis": {"max_seconds": float(raw.get("analysis", {}).get("max_seconds", 8.0))},
         "source": [],
     }
+    if str(raw.get("cache", {}).get("dir", "")).strip():
+        out["cache"] = {"dir": str(raw["cache"]["dir"]).strip()}
     for s in raw.get("source", []):
         stype = s.get("type") or _LEGACY_GROUP.get(s.get("group", ""), None) or "oneshots"
         item = {"name": str(s["name"]).strip(), "type": stype, "path": str(s["path"]).strip(), "category": str(s.get("category", "")).strip()}

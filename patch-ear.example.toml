@@ -3,6 +3,10 @@
 [catalogue]
 path = "catalogue.db"   # relative paths resolve from this file's folder
 
+# Optional: shared patch-press render/source cache (reused by prepare-sd-cards builds). $PATCH_PRESS_CACHE_DIR overrides it.
+# [cache]
+# dir = "~/ZGarbage/patch-press-cache"
+
 [analysis]
 max_seconds = 8.0       # only the first N seconds of each file are analysed
 

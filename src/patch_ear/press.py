@@ -23,7 +23,9 @@ from .config import SourceConfig
 from .features import extract, measured_midi
 from .items import AVERAGE, REPRESENTATIVE, SINGLE, Item, Measured, pick_category, pick_at_pitch, spread
 
-HOLD_S, TOTAL_S = 4.0, 5.5  # a plugin note: held, then its tail; enough to measure decay and movement
+# A plugin note: held, then its tail; enough to measure decay and movement. Shared with the
+# build (patch_press.cache.reference), which renders the same note so these renders hit the cache.
+from patch_press.cache.reference import HOLD_S, TOTAL_S, VELOCITY as REF_VELOCITY
 PROBE_S = 3.0
 UNSUPPORTED = {"granular"}  # source types the adapters here cannot turn into audio
 
@@ -127,10 +129,10 @@ def _sample_set(rc, ref_midi: int):
     if isinstance(src, (CLAPSourceConfig, VSTSourceConfig)):
         adapter = (CLAPAdapter if isinstance(src, CLAPSourceConfig) else VSTAdapter)(src)
         adapter._apply_preset(src.preset or Path(str(src.plugin)).stem)  # what capture() does first; capture() itself keeps a 5 s lead-in
-        cap = replace(rc.capture, velocities=[100], round_robins=1)
+        cap = replace(rc.capture, velocities=[REF_VELOCITY], round_robins=1)
 
         def render(note: int) -> AudioBuffer:
-            return adapter.render_note(note, 100, HOLD_S, TOTAL_S, cap.tempo_bpm, cap.sample_rate)
+            return adapter.render_note(note, REF_VELOCITY, HOLD_S, TOTAL_S, cap.tempo_bpm, cap.sample_rate)
 
         # A preset can sound octaves away from the key pressed (a bass patch two octaves down): the key is a label too.
         # Render the reference key, pitch-track it, and re-render at the corrected key when it is a whole-octave off.
@@ -142,7 +144,7 @@ def _sample_set(rc, ref_midi: int):
             if octaves and abs(diff - octaves) < 3 and 24 <= ref_midi - octaves <= 108:
                 note = ref_midi - octaves
                 audio = render(note)
-        return SampleSet(name=name or "", category=Category.SYNTH, samples=[Sample(note=note, velocity=100, round_robin=1, audio=audio)])
+        return SampleSet(name=name or "", category=Category.SYNTH, samples=[Sample(note=note, velocity=REF_VELOCITY, round_robin=1, audio=audio)])
     if isinstance(src, (BitwigSourceConfig, MappedSourceConfig)):
         adapter = BitwigAdapter(src) if isinstance(src, BitwigSourceConfig) else MappedAdapter(src)
         return adapter.capture(name=name, max_round_robins=1, note_step=1, keep_velocity_layers=False)
