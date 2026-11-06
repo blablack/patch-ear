@@ -18,7 +18,7 @@ import soundfile as sf
 from . import catalogue
 from .config import Config, SourceConfig
 from .features import EXTRA, FEATURES, extract, load, measured_midi
-from .items import AVERAGE, REPRESENTATIVE, SINGLE, Item, Measured, spread
+from .items import AVERAGE, NOTES, REPRESENTATIVE, SINGLE, Item, Measured, spread
 
 Event = Callable[..., None]
 
@@ -47,6 +47,11 @@ def _note_midi(stem: str) -> int | None:
     parsed = _split_note(stem)
     if parsed:
         note = parsed[1]
+        lead, n = _LEADING_NUM.match(stem), re.match(r"^([A-G])([#b]?)(-?\d)$", note)
+        if lead and n and int(lead[1]) < 128:  # '57_ElectricBass_A2': the number is the key that was sent, whatever octave the label uses
+            pc = (_PITCH_CLASS[n[1]] + (1 if n[2] == "#" else -1 if n[2] == "b" else 0)) % 12
+            if int(lead[1]) % 12 == pc:
+                return int(lead[1])
         if note.isdigit():
             return int(note)
         n = re.match(r"^([A-G])([#b]?)(-?\d)$", note)
@@ -55,10 +60,18 @@ def _note_midi(stem: str) -> int | None:
     return None
 
 
-def _pick(files: list[Path], ref_midi: int) -> Path:
-    """Sample nearest ref_midi when the names carry notes (MIDI number or note name), else the middle file by name."""
-    scored = [(abs(m - ref_midi), p.name, p) for p in files if (m := _note_midi(p.stem)) is not None]
-    return min(scored)[2] if scored else files[len(files) // 2]
+def _pick_notes(files: list[Path], ref_midi: int) -> tuple[list[Path], int]:
+    """(files to measure, mode). Matched on the note in the NAME, i.e. the key that was sent, not the sounding pitch: a patch with its
+    oscillators an octave up really does sound thin at that key. Up to three samples: the reference note first (it is the audition),
+    then an octave below and above. Names without notes fall back to the middle file."""
+    if len(files) == 1:
+        return files, SINGLE
+    picks: list[Path] = []
+    for target in (ref_midi, ref_midi - 12, ref_midi + 12):
+        near = [(abs(m - target), p.name, p) for p in files if (m := _note_midi(p.stem)) is not None]
+        if near and (p := min(near)[2]) not in picks:
+            picks.append(p)
+    return (picks, NOTES) if len(picks) > 1 else ([picks[0] if picks else files[len(files) // 2]], REPRESENTATIVE)
 
 
 def _common_prefix_len(names: list[str]) -> int:
@@ -162,11 +175,12 @@ def _library_items(src: SourceConfig) -> list[Item]:
             if len(groups) > 1 and any(len(g) > 1 for g in groups.values()):
                 cut = _common_prefix_len(list(groups))
                 for base, g in sorted(groups.items()):
-                    out.append(Item(f"{src.name}:{rel / base}", base[cut:] or base, [_pick(g, src.ref_midi)],
-                                    REPRESENTATIVE if len(g) > 1 else SINGLE, len(g), category=cat, tags=["type:instrument"]))
+                    picks, mode = _pick_notes(g, src.ref_midi)
+                    out.append(Item(f"{src.name}:{rel / base}", base[cut:] or base, picks, mode, len(g), category=cat, tags=["type:instrument"]))
             else:
-                out.append(Item(f"{src.name}:{rel}", f.name if str(rel) != "." else root.name, [_pick(files, src.ref_midi)],
-                                REPRESENTATIVE, len(files), category=cat, tags=["type:instrument"]))
+                picks, mode = _pick_notes(files, src.ref_midi)
+                out.append(Item(f"{src.name}:{rel}", f.name if str(rel) != "." else root.name, picks, mode, len(files),
+                                category=cat, tags=["type:instrument"]))
         else:
             for p in files:
                 out.append(Item(f"{src.name}:{p.relative_to(root)}", p.stem, [p], category=_guess_category(rel.parts, fallback), tags=["type:oneshot"]))
@@ -201,19 +215,23 @@ def items_for(src: SourceConfig) -> list[Item]:
             parsed = _split_note(p.stem)  # '<patch>-048_c2', '<patch> C3', '<patch>_C2_0002', ...
             groups.setdefault((p.parent, parsed[0] if parsed else p.stem), []).append(p)
         cut = _common_prefix_len([b for _, b in groups])
-        return [Item(f"{src.name}:{rel(folder) / base}", base[cut:] or base, [_pick(files, src.ref_midi)],
-                     REPRESENTATIVE if len(files) > 1 else SINGLE, len(files),
-                     category=src.category if src.category != "auto" else _guess_category(rel(folder).parts, "Synth"))
-                for (folder, base), files in sorted(groups.items())]
+        out = []
+        for (folder, base), files in sorted(groups.items()):
+            picks, mode = _pick_notes(files, src.ref_midi)
+            out.append(Item(f"{src.name}:{rel(folder) / base}", base[cut:] or base, picks, mode, len(files),
+                            category=src.category if src.category != "auto" else _guess_category(rel(folder).parts, "Synth")))
+        return out
 
     # multisample: one folder (that directly holds WAVs) = one preset
     folders: dict[Path, list[Path]] = {}
     for p in wavs:
         folders.setdefault(p.parent, []).append(p)
-    return [Item(f"{src.name}:{rel(f)}", f.name if str(rel(f)) != "." else root.name, [_pick(files, src.ref_midi)],
-                 REPRESENTATIVE if len(files) > 1 else SINGLE, len(files),
-                 category=src.category if src.category != "auto" else _guess_category(rel(f).parts, "Synth"))
-            for f, files in sorted(folders.items())]
+    out = []
+    for f, files in sorted(folders.items()):
+        picks, mode = _pick_notes(files, src.ref_midi)
+        out.append(Item(f"{src.name}:{rel(f)}", f.name if str(rel(f)) != "." else root.name, picks, mode, len(files),
+                        category=src.category if src.category != "auto" else _guess_category(rel(f).parts, "Synth")))
+    return out
 
 
 def plan_source(src: SourceConfig) -> tuple[list[Item], list[str]]:

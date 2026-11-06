@@ -54,7 +54,11 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 ## Status / not built yet
 - Only WAV types are analysable (`SourceType.analyzable`). Plugin (CLAP/VST3) presets should be rendered via patch-press adapters
   (patch-render) at a fixed reference note, then fed through `features.extract` — not implemented.
-- multisample/filename types analyse ONE representative sample per preset (nearest `ref_midi`, else middle by name): a heuristic, not a patch-level measure.
+- multisample/filename types measure up to THREE samples per preset (`_pick_notes`: the reference note, an octave below and above; features are
+  the mean, the audition is the reference sample; `representative`=3). Matched on the key SENT, not the sounding pitch (a patch with oscillators
+  an octave up really is thin at that key): the leading MIDI number in the name if it agrees with the note (`57_Bass_A2` -> 57), else the note
+  name with C4=60. Libraries with only a note name may use the other octave convention (C3=60): then their notes are an octave off (no
+  per-source offset yet). Still a heuristic, not a patch-level measure.
 - UI was checked headless (Firefox via WebDriver BiDi: console clean, progress/dialog/picker rendered) but not by hand in a normal browser.
 - FIXED (2026-11-02): frame-level stats (centroid/rolloff/flatness/zcr) were an unweighted mean over frames, so the silent tail of a
   decaying note dominated (a clean sub measured 932 Hz centroid / "noisy"). Now loudness-weighted, centroid/rolloff from the power spectrum.
@@ -75,6 +79,9 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 - STILL OPEN: bright-but-regular waves (saw/square: "basic wave", e.g. Zebra Third FM Bass, Junos Sub Only) rank mid-grit because grit
   conflates brightness with noise; inharmonic_ratio now exists but grit does not use it yet (untested against verdicts). Attack-only distortion (Carnage Amp) is
   averaged away. (The old `pulsing 0.1Hz` false label is fixed: 59 patches pulse now.)
-- Feature definitions (grit, weight) are UNVALIDATED against the user's ears. Validate on patches the user knows
+- weight VALIDATED on Bass (2026-11-05, extremes): heaviest 5 confirmed. Lightest were wrong until the representative note was fixed
+  (a name without a MIDI number fell back to the alphabetical middle file = D#7; then A2 read as MIDI 45 when the library sent 57). Now plausible
+  (dubstep/standup/electric bass light). The vendor's folder decides the category: "Bass/AlterEgo..." and "Bass & Guitar/Synth Guitar" are Bass.
+- Feature definitions (grit, weight) were checked only on Bass, at the extremes. Validate on patches the user knows
   before trusting rankings (see memory: verify before "confirmed").
 - No automated tests (like the sibling repos); smoke check by analyzing a few known files.

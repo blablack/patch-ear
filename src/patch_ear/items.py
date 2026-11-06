@@ -9,7 +9,7 @@ from typing import TypeVar
 
 import numpy as np
 
-SINGLE, REPRESENTATIVE, AVERAGE = 0, 1, 2  # stored in catalogue `representative`
+SINGLE, REPRESENTATIVE, AVERAGE, NOTES = 0, 1, 2, 3  # stored in catalogue `representative`
 MAX_AVERAGED = 24  # a kit is measured over at most this many hits (evenly spaced)
 T = TypeVar("T")
 

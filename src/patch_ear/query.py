@@ -24,7 +24,7 @@ def summarize(row: dict, full: bool = False) -> dict:
     if full:
         out["path"] = row["path"]
         out["n_samples"] = row.get("n_samples", 1)
-        out["measured_as"] = {2: "average of its samples", 1: "one sample of several"}.get(row["representative"], "its only sample")
+        out["measured_as"] = {3: "average of 3 notes (an octave below, at, and above the reference note)", 2: "average of its samples", 1: "one sample of several"}.get(row["representative"], "its only sample")
         out["features"] = {k: round(v, 4) for k, v in row["features"].items()}
         out["percentiles_in_category"] = {k: round(v) for k, v in row["pct"].items()}
     return out
