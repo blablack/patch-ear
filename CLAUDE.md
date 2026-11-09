@@ -85,6 +85,11 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 - weight VALIDATED on Bass (2026-11-05, extremes): heaviest 5 confirmed. Lightest were wrong until the representative note was fixed
   (a name without a MIDI number fell back to the alphabetical middle file = D#7; then A2 read as MIDI 45 when the library sent 57). Now plausible
   (dubstep/standup/electric bass light). The vendor's folder decides the category: "Bass/AlterEgo..." and "Bass & Guitar/Synth Guitar" are Bass.
+- EMBEDDINGS (experimental, `embed.py`, `uv sync --extra clap`; CPU torch index in pyproject): LAION-CLAP vectors of each preset's audition file in the
+  `embeddings` table. CLI: `embed [category]`, `text "phrase" [category]`, `probe [category]`. On Bass (n=276) the zero-shot text axes track
+  weight +0.60, decay +0.61, grit +0.42, inharmonic +0.22, roughness +0.12: use features for narrow validated properties, embeddings for broad
+  character. MCP tools: `sounds_like(patch_id)` (stored vectors, numpy only, instant) and `search_by_description(text)` (loads the CLAP text model on
+  first call, several seconds; errors clearly if the extra is missing). Only embedded presets are searched (only Bass so far).
 - Feature definitions (grit, weight) were checked only on Bass, at the extremes. Validate on patches the user knows
   before trusting rankings (see memory: verify before "confirmed").
 - No automated tests (like the sibling repos); smoke check by analyzing a few known files.

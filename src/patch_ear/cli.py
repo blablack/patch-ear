@@ -52,6 +52,19 @@ def main() -> None:
     s.add_argument("--limit", type=int, default=15)
     s.add_argument("--filter", action="append", default=[], metavar="FEATURE:MIN:MAX", help="e.g. centroid_hz::400")
 
+    e = sub.add_parser("embed", help="(experimental, needs --extra clap) CLAP-embed the catalogue's audition files")
+    e.add_argument("category", nargs="?", default=None)
+    e.add_argument("--limit", type=int)
+    e.add_argument("--force", action="store_true")
+
+    t = sub.add_parser("text", help="(experimental) rank embedded presets by a text description")
+    t.add_argument("phrase")
+    t.add_argument("category", nargs="?", default=None)
+    t.add_argument("--limit", type=int, default=10)
+
+    pr = sub.add_parser("probe", help="(experimental) how well do CLAP text axes track the validated features?")
+    pr.add_argument("category", nargs="?", default=None)
+
     w = sub.add_parser("serve", help="web UI: configure sources/plugins, run analysis with progress, browse the catalogue")
     w.add_argument("--host", default="127.0.0.1")
     w.add_argument("--port", type=int, default=8765)
@@ -69,6 +82,19 @@ def main() -> None:
     cfg = load_config(args.config)
     if args.cmd == "analyze":
         _run_analyze(cfg, args.source, args.force, args.limit)
+    elif args.cmd in ("embed", "text", "probe"):
+        from . import embed
+
+        if args.cmd == "embed":
+            embed.run(catalogue.connect(cfg.catalogue), args.category, args.limit, force=args.force)
+        elif args.cmd == "text":
+            conn = catalogue.connect(cfg.catalogue, readonly=True)
+            names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM patches")}
+            for i, sim in embed.search(conn, args.phrase, args.category, args.limit):
+                print(f"{sim:.3f}  {names.get(i, i)}  [{i}]")
+        else:
+            for r in embed.probe(catalogue.connect(cfg.catalogue, readonly=True), args.category):
+                print(f"{r['feature']:<17} spearman {r['spearman']:+.2f} (n={r['n']})   '{r['positive']}'  vs  '{r['negative']}'")
     else:
         filters = {}
         for f in args.filter:

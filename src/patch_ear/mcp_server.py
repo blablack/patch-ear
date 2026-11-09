@@ -66,6 +66,34 @@ def similar_to(patch_id: str, n: int = 10) -> list[dict]:
     return [query.summarize(r) | {"distance": round(d, 2)} for r, d in query.similar(rows, patch_id, n)]
 
 
+def _with_scores(conn, hits: list[tuple[str, float]]) -> list[dict]:
+    by_id = {r["id"]: r for r in catalogue.load_ranked(conn)}
+    return [query.summarize(by_id[i]) | {"similarity": round(s, 3)} for i, s in hits if i in by_id]
+
+
+@mcp.tool()
+def sounds_like(patch_id: str, n: int = 10, category: str | None = None) -> list[dict]:
+    """Patches that SOUND closest to the given one, by a learned audio embedding (CLAP) rather than by the hand-built
+    measurements: good for overall timbre, genre and feel ("something like this but in another library").
+    similar_to compares the measured features instead. Only presets that have been embedded are searched; similarity is cosine (1 = identical)."""
+    from . import embed
+
+    conn = _conn()
+    return _with_scores(conn, embed.neighbours(conn, patch_id, n, category))
+
+
+@mcp.tool()
+def search_by_description(text: str, category: str | None = None, n: int = 10) -> list[dict]:
+    """Rank embedded patches against a free-text description ("a wobbly dubstep bass", "a glassy bell pad").
+    Best for broad character (genre, mood, instrument type). It is weaker than search_patches on narrow properties it
+    can't hear precisely (roughness) and was only checked on Bass; use weight/grit sorting there. The first call loads the
+    text model (several seconds); this needs the optional `clap` extra, otherwise it says so."""
+    from . import embed
+
+    conn = _conn()
+    return _with_scores(conn, embed.search(conn, text, category, n))
+
+
 def main() -> None:
     try:
         mcp.run()

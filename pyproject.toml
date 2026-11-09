@@ -27,9 +27,18 @@ patch-ear-mcp = "patch_ear.mcp_server:main"
 # Reading patch-press scan configs (type "press"): library/Kontakt/Bitwig/wavetable audio and CLAP/VST3 renders.
 # Install with `uv sync --extra press`. Same editable sibling checkout that prepare-sd-cards uses.
 press = ["patch-press"]
+# Audio-text embeddings (LAION-CLAP via transformers) for text search and cross-checking the hand-built features. Experimental.
+# Install with `uv sync --extra clap --extra press` (CPU torch, no CUDA download).
+clap = ["torch", "transformers"]
 
 [tool.uv.sources]
 patch-press = { path = "../patch-press", editable = true }
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = ["ruff"]
