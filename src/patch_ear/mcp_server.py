@@ -57,6 +57,8 @@ def search_patches(category: str | None = None, tag: str | None = None, library:
     CALM vs AGGRESSIVE: sort_by "intensity" (0-100 within the category; descending = most aggressive/energetic, ascending = calmest). It
     averages the arousal and mood_aggressive ranks, which agreed with the audio-text tags on loops and basses and with what the loop
     names suggest (drones/ambient at the bottom, noise beats at the top). Ranks are within a category, so "calm kick" means calm among kicks.
+    By ear it held at the extremes and for one mid-scale set of drum loops (29/55/67), but another set (36/57/69) sounded the same level,
+    so read it as coarse bands (calm, middle, aggressive), not a fine ranking in the middle.
     TRAINED SCORES (usable in sort_by and filters; absent for sounds not yet scored, which then sort last / never match a filter).
     Models trained on listener-labelled music: best on loops and musical sounds; on single hits rank within the category, do not read
     absolute values.
