@@ -8,6 +8,9 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 - **Changes to patch-ear itself** (features, scoring and tag quality, tools, parked ideas): `blablack/patch-ear` (this repo, **public**: keep issue text generic, no personal details). Run `gh issue list` here.
 Read them before starting; comment on or close an issue when its work is done or postponed. There is no TODO.md any more.
 
+## Where the owner's configuration lives
+The owner keeps their `patch-ear.toml` (library paths and choices), `patch-ear-local.toml`, `plugins.txt` and `subset.txt` in a separate private repo, `studio-claude-project/patch-ear/`, and `data/` holds **symlinks** to them (`data/patch-ear.toml` and the others). Code finds them as usual (`$PATCH_EAR_HOME/patch-ear.toml`). Rules that make this work: the catalogue path in the toml is absolute, and relative paths such as `only_list` resolve from the config file's real folder (config.py uses `path.resolve().parent`). Edit the config in the private repo; a copy of the pre-move files is in `data/pre-move-backup/`. This repo ships only `patch-ear.example.toml`.
+
 ## Working rules (set by the user, 2026-11-14)
 - **Ask before processing any library.** Before adding or analysing ANY library or folder (a new `[[source]]`, a re-analysis, scoring a batch), say which one, how many sounds, and roughly how long it takes, then wait for a yes. One library at a time, never "everything on the list".
 - **No loose one-shot percussion.** Drums are wanted only as pre-made kits (Samples From Mars "Kits" folders, Just Add Drums). Loops, textures, field recordings, FX and melodic/pad material are fine. Quantum Force (Ghosthack) is wanted for its loops only.
