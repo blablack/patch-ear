@@ -89,8 +89,15 @@ The owner keeps their `patch-ear.toml` (library paths and choices), `patch-ear-l
 - `data/patch-ear.toml` (gitignored) was reverse-engineered from the Bento/Deluge shipping lists: 45 `library`/`kit` sources over the NAS
   (kits, synth multisamples, Rastsound, Wave Alchemy, Just Add Drums) + one `press` source (`data/plugins.txt`: Diva/Zebra2/ZebraHZ).
   Dry run (no audio): ~4,900 presets. `essential_wav_24bit` Synths are NOT listed (duplicates of the standalone libs); its Drums/02. Kits IS
-  (holds kits the standalone folders lack). Not covered yet: wavetables (Liam, Polyend), granular, Bitwig .multisample (Orchestral Tools, Electric Keys).
+  (holds kits the standalone folders lack). Not covered yet: wavetables (Liam, Polyend), granular, Bitwig .multisample beyond the folders in the next bullet (Orchestral Tools).
   Name detection also handles `<patch>_C2`, `<patch>-24` (MIDI number) and several presets in one folder (grouped by the shared base name).
+- **Bitwig `.multisample` files** are measured through patch-press: `patch-press scan-bitwig "<folder>" "<patch-ear>/data/bitwig-configs/<Library>"` writes one YAML per
+  file (it reads the zip's `multisample.xml`: roots, zones, loops), then a `press` source points at `data/bitwig-configs` and measures ONE note per instrument
+  (`ref_midi`; the audition file is that note). Several `press` sources can share the config root: each takes its configs from a subset file (`only_list`, patterns
+  like `Bass and Guitar/Acoustic_Bass*`) and can set its own `category`, which beats patch-ear's tag rules for everything it selects (used to keep the acoustic
+  basses out of Bass: `bitwig_played_bass` -> Played-Bass, `bitwig_guitar` -> Guitar, `bitwig_multisamples` -> Keys). The config tree is regenerable and not versioned.
+  The patch-press adapter reads both XML layouts (older: `<sample>` under the root; newer: inside `<layer>`, `track="true"`). Done: Electric Keys (4), Bass and
+  Guitar (11). Not done: Rare Organs and Keys (47), Chromatic Percussion (2). The `bitwig` source type in the Settings page is still a stub; use `press`.
   When a source is pointed AT a "Kits" folder, that folder counts as the Kits level. Known rough spot: some `essential-kits` machine folders
   become one kit when their sub-kits aren't named "...Kit".
 

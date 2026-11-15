@@ -78,7 +78,8 @@ SOURCE_TYPES: list[SourceType] = [
                "A patch-press Configs folder (<library>/<subfolders>/<preset>.yaml): the whole library, whatever the preset is made of. "
                "Audio comes from patch-press's own adapters: library, Kontakt/SFZ/Bitwig maps, wavetables, and CLAP/VST3 presets "
                "rendered one note each. The first folder is the library. Optionally restrict it to a subset file (config paths "
-               "without .yaml, `*` allowed). Needs `uv sync --extra press`. Categories come from patch-press's tag rules.",
+               "without .yaml, `*` allowed). Needs `uv sync --extra press`. Categories come from patch-press's tag rules unless the source "
+               "sets a category, which then applies to every preset it selects (use a subset file per category).",
                ref_midi=True, has_list=True, auto_category=True),
     SourceType("bitwig", "Bitwig .multisample",
                "Bitwig multisample libraries (ZIP + XML). Configuration is stored; the analyzer does not read them yet.",

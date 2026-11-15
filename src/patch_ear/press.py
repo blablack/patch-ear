@@ -92,7 +92,8 @@ def plan(src: SourceConfig) -> tuple[list[Item], list[str]]:
         tags = derive_tags(cat, coll, sub, name)
         items.append(Item(
             id=f"{src.name}:{rel}", name=" / ".join([coll, *sub[-1:], name]), library=coll,
-            tags=[*tags, f"type:{kind}"], category=pick_category(tags, kind),
+            tags=[*tags, f"type:{kind}"],
+            category=src.category if src.category not in ("", "auto") else pick_category(tags, kind),  # a category set on the source wins
             sig_files=[yml], capture=lambda max_seconds, yml=yml, ref=src.ref_midi: capture(yml, ref, max_seconds),
         ))
     notes = [f"{n} {t} configs skipped (cannot be measured yet)" for t, n in unsupported.items()]
