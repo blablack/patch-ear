@@ -62,6 +62,16 @@ SOURCE_TYPES: list[SourceType] = [
     SourceType("kit", "Kit library",
                "A folder per kit with instrument subfolders inside (Just Add Drums style). A kit's row is the average over its hits. "
                "Like scan-library --type kit."),
+    SourceType("machine", "Drum machine (per role)",
+               "A drum-machine pack (point at the pack root, with loops/kits/grooves excluded). Every hit is sorted by role from its "
+               "folder and file names (kick, snare, clap, hat, tom, cymbal) and each role is one row per machine (averaged over up to "
+               "24 hits; clean and coloured versions are kept apart when both exist). The category is the role, so grit and weight are "
+               "ranked among kicks, among snares and so on, which makes machines comparable.",
+               auto_category=True),
+    SourceType("loops", "Loops",
+               "Every WAV is one loop row (category Loop). Tempo and key are NOT measured: these are professional loops that get synced "
+               "to the project. What matters is character (grit, weight, movement, mood). A role tag (drums, bass, melodic, drone, texture, fx, "
+               "synth) comes from the folder and file names.", auto_category=True),
     SourceType("wavetable", "Wavetables",
                "Serum-format wavetables (2048-sample frames). Like scan-wavetables."),
     SourceType("press", "patch-press configs",

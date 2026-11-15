@@ -57,6 +57,8 @@ def main() -> None:
     e.add_argument("--limit", type=int)
     e.add_argument("--force", action="store_true")
 
+    sub.add_parser("moods", help="(experimental, needs --extra clap) tag every embedded sound with mood and use-case words")
+
     t = sub.add_parser("text", help="(experimental) rank embedded presets by a text description")
     t.add_argument("phrase")
     t.add_argument("category", nargs="?", default=None)
@@ -82,6 +84,10 @@ def main() -> None:
     cfg = load_config(args.config)
     if args.cmd == "analyze":
         _run_analyze(cfg, args.source, args.force, args.limit)
+    elif args.cmd == "moods":
+        from . import mood
+
+        mood.compute(catalogue.connect(cfg.catalogue))
     elif args.cmd in ("embed", "text", "probe"):
         from . import embed
 

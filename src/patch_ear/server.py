@@ -3,23 +3,49 @@ filesystem listing and start jobs."""
 
 from __future__ import annotations
 
+import functools
 import re
 import threading
 import time
 from dataclasses import asdict
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.routing import Route
 
 from . import catalogue, query
 from .analyze import _MIDI_ANYWHERE, _NOTE_SUFFIX, analyze
 from .config import SOURCE_TYPES, default_config, load_raw, parse, save_raw
+
+MATCH_RMS_DB = -20.0  # audition target: average level, in dBFS
+MATCH_PEAK_DB = -1.0  # never boost past this peak (no clipping)
+MATCH_MAX_CUT_DB, MATCH_MAX_BOOST_DB = 12.0, 60.0
+
+
+@functools.lru_cache(maxsize=128)
+def _matched_wav(path: str, mtime_ns: int) -> bytes:
+    """The file as 16-bit WAV with its average level brought to MATCH_RMS_DB (quiet sounds up, loud ones down a little), limited so the
+    peak stays under MATCH_PEAK_DB. Only for listening: the catalogue measurements always come from the original file."""
+    import io
+
+    import numpy as np
+    import soundfile as sf
+
+    x, sr = sf.read(path, dtype="float32", always_2d=True)
+    peak = float(np.abs(x).max())
+    if peak < 1e-7:  # digital silence: nothing to match
+        return Path(path).read_bytes()
+    rms = float(np.sqrt((x.astype(np.float64) ** 2).mean()))
+    gain_db = min(MATCH_RMS_DB - 20 * np.log10(rms + 1e-12), MATCH_PEAK_DB - 20 * np.log10(peak))
+    gain_db = float(np.clip(gain_db, -MATCH_MAX_CUT_DB, MATCH_MAX_BOOST_DB))
+    out = io.BytesIO()
+    sf.write(out, np.clip(x * (10 ** (gain_db / 20)), -1.0, 1.0), sr, format="WAV", subtype="PCM_16")
+    return out.getvalue()
 
 STATIC = Path(__file__).parent / "static"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "testserver"}
@@ -257,7 +283,48 @@ def create_app(config_path: str | Path | None = None) -> Starlette:
         row = conn.execute("SELECT path FROM patches WHERE id=?", (request.query_params.get("id", ""),)).fetchone() if conn else None
         if not row or not Path(row["path"]).is_file():
             return err("not found", 404)
+        if request.query_params.get("match") == "1":  # audition at a matched loudness; the file and its measurements are untouched
+            try:
+                return Response(_matched_wav(row["path"], Path(row["path"]).stat().st_mtime_ns), media_type="audio/wav",
+                                headers={"Cache-Control": "no-store"})
+            except Exception:  # unreadable by soundfile: fall back to the original
+                pass
         return FileResponse(row["path"], media_type="audio/wav")
+
+    async def listen(request: Request):
+        """A small page that plays a shortlist: /listen?id=<patch id>&id=<patch id>...&title=... (what the MCP `listen_link` returns)."""
+        import html
+
+        ids = request.query_params.getlist("id")[:40]
+        conn = db()
+        by_id = {r["id"]: r for r in catalogue.load_ranked(conn)} if conn and ids else {}
+        title = html.escape(request.query_params.get("title", "") or "Listen")
+        items = []
+        for i in ids:
+            r = by_id.get(i)
+            if not r:
+                items.append(f'<li class="missing">{html.escape(i)} (not in the catalogue)</li>')
+                continue
+            q = urlencode({"id": i})
+            meta = " · ".join(x for x in [r.get("library", ""), r["category"], ", ".join(r["labels"][:4]),
+                                            ("mood: " + ", ".join(r.get("mood", []))) if r.get("mood") else "",
+                                            ("use: " + ", ".join(r.get("use", []))) if r.get("use") else ""] if x)
+            items.append(f'<li><div class="n">{html.escape(r["name"])}</div><div class="m">{html.escape(meta)}</div>'
+                         f'<audio controls preload="none" data-src="/api/audio?{q}" src="/api/audio?{q}&amp;match=1"></audio></li>')
+        body = "".join(items) or "<li class='missing'>No sounds given.</li>"
+        page = f"""<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title>
+<style>:root{{--bg:#fff;--fg:#1b1b1b;--mut:#666;--card:#f3f3f3}}@media(prefers-color-scheme:dark){{:root{{--bg:#161616;--fg:#eee;--mut:#9a9a9a;--card:#232323}}}}
+body{{background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif;margin:0;padding:16px;max-width:720px}}
+h1{{font-size:1.2rem}}ol{{padding:0;list-style:none}}li{{background:var(--card);border-radius:8px;padding:12px;margin:10px 0}}
+.n{{font-weight:600}}.m{{color:var(--mut);font-size:.85rem;margin:4px 0 8px}}audio{{width:100%}}.missing{{color:var(--mut)}}button{{font:inherit;padding:8px 14px}}</style>
+<h1>{title}</h1><p><button id="all">Play all in order</button>
+<label style="margin-left:14px"><input type="checkbox" id="match" checked> Match loudness (quiet sounds are boosted so they can be judged)</label></p><ol>{body}</ol>
+<script>const a=[...document.querySelectorAll('audio')];
+document.getElementById('match').onchange=e=>{{window.__all=false;a.forEach(x=>{{x.pause();x.src=x.dataset.src+(e.target.checked?'&match=1':'')}})}};a.forEach((x,i)=>x.addEventListener('ended',()=>{{if(window.__all&&a[i+1])a[i+1].play()}}));
+document.getElementById('all').onclick=()=>{{a.forEach(x=>x.pause());window.__all=true;if(a[0])a[0].play()}};
+a.forEach(x=>x.addEventListener('play',()=>a.forEach(y=>{{if(y!==x)y.pause()}})));</script>"""
+        return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
     class OriginCheck:
         """Reject cross-site writes: browsers send Origin on POST/PUT; it must be a local host."""
@@ -280,7 +347,7 @@ def create_app(config_path: str | Path | None = None) -> Starlette:
             Route("/api/fs", fs), Route("/api/inspect", inspect),
             Route("/api/analyze", start_analyze, methods=["POST"]), Route("/api/cancel", cancel, methods=["POST"]),
             Route("/api/status", status), Route("/api/categories", categories),
-            Route("/api/catalogue", browse), Route("/api/audio", audio),
+            Route("/api/catalogue", browse), Route("/api/audio", audio), Route("/listen", listen),
         ],
         middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOCAL_HOSTS)), Middleware(OriginCheck)],
     )

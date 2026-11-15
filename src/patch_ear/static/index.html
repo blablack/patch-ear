@@ -318,7 +318,7 @@ function rowEl(r) {
 function play(id, btn) {
   if (!audioEl) audioEl = new Audio();
   if (playingId === id) { audioEl.pause(); playingId = null; btn.textContent = "▶"; return; }
-  audioEl.src = "/api/audio?id=" + encodeURIComponent(id); audioEl.play().catch(() => { }); playingId = id;
+  audioEl.src = "/api/audio?match=1&id=" + encodeURIComponent(id); audioEl.play().catch(() => { }); playingId = id;
   document.querySelectorAll("#rows button").forEach(b => { b.textContent = "▶"; }); btn.textContent = "■";
   audioEl.onended = () => { playingId = null; btn.textContent = "▶"; };
 }

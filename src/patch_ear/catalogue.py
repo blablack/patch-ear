@@ -113,8 +113,15 @@ def load_ranked(conn: sqlite3.Connection, category: str | None = None) -> list[d
         q, args = q + " WHERE category=?", (category,)
     rows = [dict(r) | {"features": json.loads(r["features"]), "tags": json.loads(r["tags"]) if "tags" in r.keys() else []}
             for r in conn.execute(q, args)]
+    from . import descriptors, mood
+
+    moods = mood.load(conn)
+    trained = descriptors.load(conn)
     by_cat: dict[str, list[dict]] = {}
     for r in rows:
+        m = moods.get(r["id"])
+        r["mood"], r["use"], r["mood_scores"] = (m["mood"], m["use"], m["scores"]) if m else ([], [], {})
+        r["trained"] = trained.get(r["id"], {})
         by_cat.setdefault(r["category"], []).append(r)
     for group in by_cat.values():
         n = len(group)
@@ -123,10 +130,22 @@ def load_ranked(conn: sqlite3.Connection, category: str | None = None) -> list[d
             vals = np.array([r["features"][feat] for r in group])
             order = vals.argsort().argsort()  # rank 0..n-1 (ties broken arbitrarily; fine at this scale)
             pct[feat] = (order / max(n - 1, 1) * 100) if n > 1 else np.full(n, 50.0)
+        tp: dict[str, dict[str, float]] = {}
+        for name in descriptors.NAMES:
+            have = [r for r in group if name in r["trained"]]
+            if len(have) > 1:
+                vals = np.array([r["trained"][name] for r in have])
+                rank = vals.argsort().argsort() / (len(have) - 1) * 100
+                for r, pc in zip(have, rank):
+                    tp.setdefault(r["id"], {})[name] = float(pc)
         for i, r in enumerate(group):
+            r["trained_pct"] = tp.get(r["id"], {})
             p = {feat: float(pct[feat][i]) for feat in FEATURES}
             for name, parts in SCORES.items():
                 p[name] = float(np.mean([100 - p[f] if inv else p[f] for f, inv in parts]))
+            ti = tp.get(r["id"], {})
+            if "arousal" in ti and "mood_aggressive" in ti:  # one calm..aggressive axis: the relaxed head is unreliable, these two agree
+                p["intensity"] = (ti["arousal"] + ti["mood_aggressive"]) / 2
             r["pct"] = p
             r["labels"] = _label(p, r["features"], r.get("tags"))
     return rows

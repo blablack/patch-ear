@@ -187,17 +187,103 @@ def _library_items(src: SourceConfig) -> list[Item]:
     return out
 
 
+# ---------------- drum machines, per role ----------------
+
+# Checked in this order against the lower-cased word tokens of the path (after the source root) and the file name.
+_ROLES: list[tuple[str, set[str]]] = [
+    ("Kick", {"kick", "bd", "bassdrum", "bass", "kicks"}),
+    ("Snare", {"snare", "sd", "snares", "snaredrum"}),
+    ("Clap", {"clap", "claps", "handclap"}),
+    ("Hat", {"hat", "hats", "hh", "ch", "oh", "hihat", "hihats"}),
+    ("Tom", {"tom", "toms"}),
+    ("Cymbal", {"cymbal", "crash", "ride", "china", "cymbals"}),
+]
+
+def _role_of(rel: Path) -> str | None:
+    """The role of one hit (Kick, Snare, ...) from its file name, or None for percussion and anything else."""
+    toks = [re.sub(r"[^a-z]+", "", rel.stem.lower()), *(t for t in re.split(r"[^a-z]+", rel.stem.lower()) if t)]  # "Bass Drum" -> "bassdrum"
+    words = set(toks)
+    return next((r for r, kw in _ROLES if words & kw), None)
+
+
+def _machine_items(src: SourceConfig) -> list[Item]:
+    """PRE-MADE KITS only (never the individual-hit folders): point the source at a pack's Kits folder. Each folder that directly
+    holds hits is one kit. Per kit: one whole-kit row (category Drum, averaged over its hits) plus one row per role present in it
+    (Kick, Snare, ... category = role), so kits can be compared by their own kick/snare/hat."""
+    root = src.path
+    base = root.parent if re.search(r"\bkits?\b", root.name, re.IGNORECASE) else root  # keep ids like "02. Kits/<kit>"
+    machine = src.library or root.name
+    prefix = "" if machine.startswith(("essential", "vinyl")) else re.sub(r"[_-]+", " ", machine).strip().title().replace(" From Mars", "")
+    kits: dict[Path, list[Path]] = {}
+    for p in _wavs(root, src.exclude):
+        kits.setdefault(p.parent, []).append(p)
+    out: list[Item] = []
+    for k, files in sorted(kits.items()):
+        rel_parts = k.relative_to(root).parts
+        if len(rel_parts) >= 2:
+            name = " / ".join(rel_parts[-2:])
+        else:
+            name = f"{prefix} / {k.name}" if prefix and k != root else (k.name if k != root else root.name)
+        rel = k.relative_to(base)
+        out.append(Item(f"{src.name}:{rel}", name, spread(files), AVERAGE, len(files), category="Drum", tags=["type:kit"], library=machine))
+        by_role: dict[str, list[Path]] = {}
+        for p in files:
+            r = _role_of(p.relative_to(k))
+            if r:
+                by_role.setdefault(r, []).append(p)
+        for role, rf in sorted(by_role.items()):
+            out.append(Item(f"{src.name}:{rel}:{role}", f"{name} / {role}", spread(rf), AVERAGE if len(rf) > 1 else SINGLE, len(rf),
+                            category=role, tags=["type:machine-role", f"role:{role.lower()}", "kit"], library=machine))
+    return out
+
+
+# ---------------- loops ----------------
+
+_LOOP_ROLES: list[tuple[str, tuple[str, ...]]] = [
+    ("texture", ("texture", "backdrop", "fragments")), ("drone", ("drone", "ambient", "atmos")), ("bass", ("bass",)), ("melodic", ("melod", "chord", "lead", "pad", "arp")),
+    ("fx", ("fx", "sfx", "noise", "riser")), ("drums", ("beat", "drum", "groove", "kick", "snare", "hat", "tom", "perc", "top", "clap", "cymbal")),
+    ("synth", ("synth", "acid", "organ", "vp330", "svc")),
+]
+
+
+def _loop_role(rel: Path) -> str:
+    text = "/".join(rel.parts).lower().replace("bass drum", "kick").replace("bassdrum", "kick")  # a bass-drum loop is drums
+    return next((role for role, kws in _LOOP_ROLES if any(k in text for k in kws)), "loop")
+
+
+def _loop_items(src: SourceConfig) -> list[Item]:
+    out = []
+    for p in _wavs(src.path, src.exclude):
+        rel = p.relative_to(src.path)
+        out.append(Item(f"{src.name}:{rel}", p.stem, [p], category="Loop", tags=["type:loop", f"role:{_loop_role(rel)}"],
+                        library=src.library or src.path.name))
+    return out
+
+
 # ---------------- generic libraries ----------------
 
 def items_for(src: SourceConfig) -> list[Item]:
     """Every catalogue row the source should produce."""
     if src.type == "library":
         return _library_items(src)
+    if src.type == "machine":
+        return _machine_items(src)
+    if src.type == "loops":
+        return _loop_items(src)
     root, wavs = src.path, _wavs(src.path, src.exclude)
     rel = lambda p: p.relative_to(root)  # noqa: E731
 
     cat_of = lambda p: (src.category if src.category != "auto" else _guess_category(rel(p).parent.parts, "Synth")) if src.type == "oneshots" else None  # noqa: E731
-    if src.type in ("oneshots", "wavetable"):
+    if src.type == "oneshots":
+        # Field recordings, foley, FX. One row per file. The same file name often repeats in treatment folders (Clean, Tube, Half Speed...),
+        # so a repeated name gets its folder appended, and the folders become tags (folder:outdoors, folder:tube) to search by.
+        stems = {}
+        for p in wavs:
+            stems[p.stem] = stems.get(p.stem, 0) + 1
+        return [Item(f"{src.name}:{rel(p)}", f"{p.stem} ({p.parent.name})" if stems[p.stem] > 1 else p.stem, [p], category=cat_of(p),
+                     tags=[f"folder:{q.lower().replace(' ', '-')}" for q in rel(p).parts[:-1]], library=src.library or src.path.name)
+                for p in wavs]
+    if src.type == "wavetable":
         return [Item(f"{src.name}:{rel(p)}", p.stem, [p], category=cat_of(p)) for p in wavs]
 
     if src.type in ("drumkit", "kit"):
