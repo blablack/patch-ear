@@ -3,10 +3,22 @@
 Part of the patch-press workspace (see `../CLAUDE.md`). patch-ear measures the *character* of sounds and
 serves it to Claude Desktop, which cannot hear audio and was choosing presets from names alone.
 
+**Open work is tracked as GitHub issues, in two places:**
+- **New libraries to add for the Claude Project, and project follow-ups** (restart/paste instructions, libraries considered and skipped): `blablack/studio-claude-project` (private; labels `library`, `user-action`, `reference`). Run `gh issue list` from `/home/blablack/src/studio-claude-project`.
+- **Changes to patch-ear itself** (features, scoring and tag quality, tools, parked ideas): `blablack/patch-ear` (this repo, **public**: keep issue text generic, no personal details). Run `gh issue list` here.
+Read them before starting; comment on or close an issue when its work is done or postponed. There is no TODO.md any more.
+
+## Working rules (set by the user, 2026-11-14)
+- **Ask before processing any library.** Before adding or analysing ANY library or folder (a new `[[source]]`, a re-analysis, scoring a batch), say which one, how many sounds, and roughly how long it takes, then wait for a yes. One library at a time, never "everything on the list".
+- **No loose one-shot percussion.** Drums are wanted only as pre-made kits (Samples From Mars "Kits" folders, Just Add Drums). Loops, textures, field recordings, FX and melodic/pad material are fine. Quantum Force (Ghosthack) is wanted for its loops only.
+- **Adding one library, in order:** add the `[[source]]` to `data/patch-ear.toml`, copy `data/catalogue.db` to a `.bak-pre-<name>` file, then `just analyze --source <name>` (a plain `just analyze` re-checks every sound and is slow over the NAS), `just embed`, `uv run --extra clap patch-ear moods`, then `just descriptors --shard K/3` in three processes (new sounds only). Check that no sound is left unscored or without mood tags.
+- `oneshots` sources (field recordings, FX, foley) give each file its own row in the source's `category`, with `folder:<name>` tags from its folders (for example `folder:outdoors`, `folder:tube`). Used for Found Sounds From Mars (category FX) and Polyend Fractured (category Percussion; the `Wood` family is the user's favourite for lofi snares).
+- Loop roles come from folder/file words (`_LOOP_ROLES` in `analyze.py`); `texture` matches texture, backdrop, fragments. Check a new keyword against existing rows before adding it (an overly broad one misfiled Fractured as textures once).
+
 ## Architecture: two separate pieces
 - **Analyzer** (`analyze.py`, `features.py`): offline batch. Walks `[[source]]`s from the TOML config, measures each
   sound, writes SQLite (`catalogue.py`). Incremental by mtime+size. Slow; run on library change.
-- **MCP server** (`mcp_server.py`): live but READ-ONLY. Opens the catalogue `mode=ro`, never touches audio. Tool calls
+- **MCP server** (`mcp_server.py`): live; reads the catalogue `mode=ro` and never touches audio. The ONLY thing it writes is the user's notes (`notes.py`, `notes.db` in the patch-ear home, separate so re-analysis cannot wipe it). Tool calls
   must return in seconds. Percentiles/labels are computed at query time (per category) so they never go stale.
 - Shared query layer: `query.py`. Config: `config.py` (`patch-ear.toml`, copy from `patch-ear.example.toml`).
 - **Web UI** (`server.py` Starlette + `static/index.html`, no build step): `uv run patch-ear serve` -> http://127.0.0.1:8765.
@@ -28,6 +40,39 @@ serves it to Claude Desktop, which cannot hear audio and was choosing presets fr
 - Explicit types mirror patch-press library shapes: multisample (folder = preset), filename (`<patch>-<midi>_<note>` in one folder),
   oneshots, drumkit, kit, wavetable; plus bitwig/clap/vst3 (config stored, analyser not built). Old `group=` configs are mapped.
   NO source type is device-specific (the old `deluge`/`bento` types were removed, #16).
+- `machine` type (analyze.py `_machine_items`): drum machines from their PRE-MADE KITS only (the user's choice: the individual-hit folders are
+  deliberately not used). Point the source at a pack's Kits folder (varies: `02. Kits`, `Kits`, `One Shots/Kits`, `Drums/Kits`...). Every folder
+  that directly holds hits is one kit. Per kit: a whole-kit row (category Drum, `type:kit`, averaged over <=24 hits) and one row per role present
+  (Kick, Snare, Clap, Hat, Tom, Cymbal; category = role, tags `type:machine-role`, `role:x`, `kit`), so grit/weight are percentiles among kicks,
+  among snares... Role comes from FILE-name words only ("bass" means kick here); percussion is ignored. Names are "<Pack> / <Kit> [/ <Role>]".
+  Nested kit folders (606 `606/01. Clean Kit`) use the last two path parts. Packs with no Kits folder (Dr Bohm) are not covered. NOT ear-validated
+  on drums yet. The whole-kit Drum rows average every hit incl. hats, so they do not characterise a machine: use the role rows.
+  `essential_wav_24bit` vanished from the NAS (Nov 2026) and its source was dropped; its drum kits all exist in the full packs.
+- `loops` type: every WAV is one row, category Loop, tags `type:loop` + `role:<drums|bass|melodic|drone|texture|fx|synth|loop>` from folder/file words
+  ("bass drum" counts as drums). NO tempo/key/bars on purpose: the user syncs loops in Bitwig/Deluge/Bento. Sources: Arhythmia (not Construction
+  Kits/One Shots) and the Samples From Mars loop folders (`loops_*`). Yurt Rock is still zips (not extracted), so not covered.
+- MOODS (mood.py, `patch-ear moods`, needs --extra clap, run after `embed`): zero-shot CLAP scoring of every embedded sound against a fixed
+  vocabulary (24 moods, 10 use-cases: MOODS/USES in mood.py), z-scored WITHIN the category, tags kept at z>=1 (max 4 per group), stored in
+  the `moods` table. `search_patches(mood=..., use=...)` filters on them and rows show `mood`/`use`. NOT ear-validated: same caveat as all CLAP use.
+  Re-run `moods` after any `embed`; edit the vocabulary in mood.py (prompts are plain sentences).
+- LISTENING: MCP `listen_link(ids, title)` returns a URL to the web UI's `/listen` page (server.py `listen`): one audio player per sound with name,
+  library, labels, mood/use tags, and "play all". The user clicks it from Claude Desktop. Needs `patch-ear serve` running (default http://127.0.0.1:8765,
+  override with `PATCH_EAR_UI_URL`); the tool reports `ui_running` by probing the port. Localhost only; the MCP itself only exists in Claude Desktop, so that is where the link is used.
+  Playback is **loudness-matched** by default (`/api/audio?id=...&match=1`, `_matched_wav` in server.py: average level to -20 dBFS, peak kept under -1 dBFS,
+  boost up to 60 dB, cut up to 12 dB, 16-bit WAV); the `/listen` page has a checkbox for the original level and the Catalogue tab plays matched too. Added because
+  very quiet previews (about 280 of 8,600 have an average level below -35 dB, for example a slow-attack ZebraHZ bass) were inaudible and unfair to judge. Measurements always come from the original file.
+- NOTES (notes.py, MCP `save_note` / `list_notes` / `get_palette`): the user's notes, likes, rejects, album PICKS (album + slot such as "hard bass";
+  the newest pick per slot is current) and EAR VERDICTS on mood/use tags (`tag_ok` / `tag_wrong`; `list_notes` returns per-tag counts, the way to
+  validate the zero-shot tags against the user's ears). Lives in notes.db, not the catalogue.
+- TRAINED SCORES (`sidecar/descriptors.py` + `descriptors.py` read side): Essentia Discogs-EffNet mood heads (aggressive, relaxed, sad, happy, party,
+  acoustic, electronic, danceable, instrumental, tonal; probabilities), MSD-MusiCNN emomusic arousal/valence (1-9), and AudioCommons timbral_models
+  (hardness, depth, brightness, roughness, warmth, sharpness, boominess, reverb). Written offline into the catalogue's `descriptors` table by a
+  SEPARATE Python 3.12 env (essentia-tensorflow has no 3.14 wheels): `just sidecar-setup` once, then `just descriptors` (`--shard K/N` to run several
+  workers, `--category`, `--limit`, `--force`; models live in data/essentia-models). Timbre only on the first 8 s and not on whole-kit (Drum) rows; processing
+  order is by category priority. Query names: arousal, valence, mood_<x>, timbre_<x> (usable in sort_by/filters). Mood models were trained on music, so on
+  single drum hits they saturate (every kick "sad", "electronic"): rank within a category. NOT ear-validated. The sidecar needs numpy-2 and
+  librosa>=0.10 shims for timbral_models (see the file). Rerun `just descriptors` after new sounds are analysed.
+- MCP `compare_patches(ids)`: side-by-side measurements for 2-8 patches.
 - `press` type (press.py; needs `uv sync --extra press`) is for what only patch-press can read (CLAP/VST3 plugin presets rendered one note, Kontakt/SFZ/Bitwig maps): it walks a patch-press Configs tree
   (`<root>/<library>/<subfolders>/<preset>.yaml`; prepare-sd-cards/output/Configs); the first folder is the `library`, id =
   `<source>:<config path without .yaml>`. `only_list` is an optional SUBSET file (config paths, `*`/`?` allowed, `#` comments;
