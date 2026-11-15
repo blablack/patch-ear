@@ -30,10 +30,14 @@ def list_categories() -> dict:
     tags: dict[str, int] = {}
     for r in catalogue.load_ranked(conn):
         for t in r.get("tags", []):
+            if t.startswith("folder:") and r["category"] == "Loop":
+                continue  # a loop's session folder: hundreds of them, so not listed (still searchable with tag=)
             tags[t] = tags.get(t, 0) + 1
     libraries = {r["library"]: r["n"] for r in conn.execute("SELECT library, COUNT(*) n FROM patches GROUP BY library")}
     return {"categories": counts, "libraries": libraries, "tags": tags, "measurements": query.SORTABLE,
-            "notes": "grit and weight are 0-100 scores (percentile within category). Other measurements are raw values."}
+            "notes": "grit and weight are 0-100 scores (percentile within category). Other measurements are raw values. "
+                     "Every loop also carries folder:<session-folder> tags (e.g. folder:upright-skank-a-minor-130bpm), which are not "
+                     "listed here: read them off a result's tags and pass one as tag= to see the rest of that session."}
 
 
 @mcp.tool()

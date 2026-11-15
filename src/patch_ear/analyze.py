@@ -28,10 +28,12 @@ _MIDI_ANYWHERE = re.compile(r"(?<![A-Za-z0-9])(\d{2,3})_[a-g]#?-?\d+(?!\d)", re.
 
 
 def _excluded(rel: Path, patterns: list[str]) -> bool:
-    """A folder is left out when a pattern (fnmatch, case-insensitive) matches one of its folder names or a leading path of it."""
+    """A file is left out when a pattern (fnmatch, case-insensitive) matches one of its folder names, a leading path of it, or the
+    file's own name (with or without .wav), so `Bongo*` drops loose files from a flat folder."""
     parts = rel.parent.parts
     heads = ["/".join(parts[: i + 1]).lower() for i in range(len(parts))]
-    return any(fnmatch.fnmatch(x, pat.lower()) for pat in patterns for x in (*heads, *(p.lower() for p in parts)))
+    names = (rel.name.lower(), rel.stem.lower())
+    return any(fnmatch.fnmatch(x, pat.lower()) for pat in patterns for x in (*heads, *(p.lower() for p in parts), *names))
 
 
 def _wavs(root: Path, exclude: list[str] | None = None) -> list[Path]:
@@ -201,7 +203,8 @@ _ROLES: list[tuple[str, set[str]]] = [
 
 def _role_of(rel: Path) -> str | None:
     """The role of one hit (Kick, Snare, ...) from its file name, or None for percussion and anything else."""
-    toks = [re.sub(r"[^a-z]+", "", rel.stem.lower()), *(t for t in re.split(r"[^a-z]+", rel.stem.lower()) if t)]  # "Bass Drum" -> "bassdrum"
+    stem = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", rel.stem)  # camelCase: "HiHatClosed" -> "Hi Hat Closed", "FloorTom" -> "Floor Tom"
+    toks = [re.sub(r"[^a-z]+", "", stem.lower()), *(t for t in re.split(r"[^a-z]+", stem.lower()) if t)]  # "Bass Drum" -> "bassdrum"
     words = set(toks)
     return next((r for r, kw in _ROLES if words & kw), None)
 
@@ -241,22 +244,31 @@ def _machine_items(src: SourceConfig) -> list[Item]:
 
 _LOOP_ROLES: list[tuple[str, tuple[str, ...]]] = [
     ("texture", ("texture", "backdrop", "fragments")), ("drone", ("drone", "ambient", "atmos")), ("bass", ("bass",)), ("melodic", ("melod", "chord", "lead", "pad", "arp")),
+    ("guitar", ("guitar", "resonator", "pedal steel")),
     ("fx", ("fx", "sfx", "noise", "riser")), ("drums", ("beat", "drum", "groove", "kick", "snare", "hat", "tom", "perc", "top", "clap", "cymbal")),
-    ("synth", ("synth", "acid", "organ", "vp330", "svc")),
+    ("synth", ("synth", "acid", "organ", "vp330", "svc", "moog", "clavinet")),
 ]
 
 
-def _loop_role(rel: Path) -> str:
-    text = "/".join(rel.parts).lower().replace("bass drum", "kick").replace("bassdrum", "kick")  # a bass-drum loop is drums
+def _loop_role(rel: Path, library: str = "") -> str:
+    # The library name counts too: a pack called "... Bass" is bass even when its file names say "Groove".
+    text = f"{'/'.join(rel.parts)} {library}".lower().replace("bass drum", "kick").replace("bassdrum", "kick")  # a bass-drum loop is drums
     return next((role for role, kws in _LOOP_ROLES if any(k in text for k in kws)), "loop")
 
 
 def _loop_items(src: SourceConfig) -> list[Item]:
     out = []
-    for p in _wavs(src.path, src.exclude):
+    files = _wavs(src.path, src.exclude)
+    stems: dict[str, int] = {}
+    for p in files:
+        stems[p.stem] = stems.get(p.stem, 0) + 1
+    library = src.library or src.path.name
+    for p in files:
         rel = p.relative_to(src.path)
-        out.append(Item(f"{src.name}:{rel}", p.stem, [p], category="Loop", tags=["type:loop", f"role:{_loop_role(rel)}"],
-                        library=src.library or src.path.name))
+        # A repeated file name (Dry/Amped, Clean/Wah treatments) gets its folder appended; the folders become tags to search by.
+        name = f"{p.stem} ({p.parent.name})" if stems[p.stem] > 1 and p.parent != src.path else p.stem
+        tags = ["type:loop", f"role:{_loop_role(rel, library)}"] + [f"folder:{q.lower().replace(' ', '-')}" for q in rel.parts[:-1]]
+        out.append(Item(f"{src.name}:{rel}", name, [p], category="Loop", tags=tags, library=library))
     return out
 
 

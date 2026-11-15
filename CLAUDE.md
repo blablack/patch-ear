@@ -38,7 +38,7 @@ The owner keeps their `patch-ear.toml` (library paths and choices), `patch-ear-l
 - Shape is DECLARED BY HAND per source, not guessed: vendors name files too differently for `library` to cover (it kept needing regexes).
   Use `multisample` (folder = preset), `filename` (several patches in one folder, told apart by the name before the note; `_split_note`
   handles `-048_c2`, ` C3`, `_C2_0002` round-robin takes, `-AB12` export tags, a leading MIDI number), `oneshots`, `kit`. `exclude = [...]`
-  (folder names / fnmatch, relative to the source) leaves out loops, FX, phrases: only what ships as a preset is scanned (see prepare-sd-cards
+  (folder names or file names / fnmatch, case-insensitive, relative to the source; `Bongo*` drops loose files from a flat folder) leaves out loops, FX, phrases: only what ships as a preset is scanned (see prepare-sd-cards
   `_SFM_SKIP`). Category comes from path words unless the source sets one. Kit previews are the measured hits concatenated (`_kit_preview`).
 - Explicit types mirror patch-press library shapes: multisample (folder = preset), filename (`<patch>-<midi>_<note>` in one folder),
   oneshots, drumkit, kit, wavetable; plus bitwig/clap/vst3 (config stored, analyser not built). Old `group=` configs are mapped.
@@ -51,9 +51,13 @@ The owner keeps their `patch-ear.toml` (library paths and choices), `patch-ear-l
   Nested kit folders (606 `606/01. Clean Kit`) use the last two path parts. Packs with no Kits folder (Dr Bohm) are not covered. NOT ear-validated
   on drums yet. The whole-kit Drum rows average every hit incl. hats, so they do not characterise a machine: use the role rows.
   `essential_wav_24bit` vanished from the NAS (Nov 2026) and its source was dropped; its drum kits all exist in the full packs.
-- `loops` type: every WAV is one row, category Loop, tags `type:loop` + `role:<drums|bass|melodic|drone|texture|fx|synth|loop>` from folder/file words
-  ("bass drum" counts as drums). NO tempo/key/bars on purpose: the user syncs loops in Bitwig/Deluge/Bento. Sources: Arhythmia (not Construction
-  Kits/One Shots) and the Samples From Mars loop folders (`loops_*`). Yurt Rock is still zips (not extracted), so not covered.
+- `loops` type: every WAV is one row, category Loop, tags `type:loop` + `role:<drums|bass|guitar|melodic|drone|texture|fx|synth|loop>` from folder/file words
+  AND the library name (`_loop_role`; "bass drum" counts as drums) plus `folder:<dashed path parts>` tags (`list_categories` hides `folder:` tags for category Loop: there are
+  hundreds; they work as `tag=`). Repeated stems get "(parent folder)" in the name. NO tempo/key/bars on purpose: the user syncs loops in Bitwig/Deluge/Bento.
+  Sources: Arhythmia (not Construction Kits/One Shots), the Samples From Mars loop folders (`loops_*`) and Yurt Rock (`loops_yr_*`, extracted from the zips into
+  `~/ZGarbage/yurt-rock/<zip>/`; 13.7k loops, about 80% of category Loop, so Loop percentiles are mostly against Yurt Rock; per-library filtering does not rebase them).
+  Yurt Rock drum packs also have `machine_yr_*` sources for the pre-made `<Session>_Kit` folders (103 kits; role words are split from camelCase, e.g. `HiHatClosed`).
+  Not done: the Joey Waronker Collection (about 2.8k multi-velocity hits) and the loose one-shot/multitrack folders.
 - MOODS (mood.py, `patch-ear moods`, needs --extra clap, run after `embed`): zero-shot CLAP scoring of every embedded sound against a fixed
   vocabulary (24 moods, 10 use-cases: MOODS/USES in mood.py), z-scored WITHIN the category, tags kept at z>=1 (max 4 per group), stored in
   the `moods` table. `search_patches(mood=..., use=...)` filters on them and rows show `mood`/`use`. NOT ear-validated: same caveat as all CLAP use.
@@ -97,7 +101,7 @@ The owner keeps their `patch-ear.toml` (library paths and choices), `patch-ear-l
   like `Bass and Guitar/Acoustic_Bass*`) and can set its own `category`, which beats patch-ear's tag rules for everything it selects (used to keep the acoustic
   basses out of Bass: `bitwig_played_bass` -> Played-Bass, `bitwig_guitar` -> Guitar, `bitwig_multisamples` -> Keys). The config tree is regenerable and not versioned.
   The patch-press adapter reads both XML layouts (older: `<sample>` under the root; newer: inside `<layer>`, `track="true"`). Done: Electric Keys (4), Bass and
-  Guitar (11). Not done: Rare Organs and Keys (47), Chromatic Percussion (2). The `bitwig` source type in the Settings page is still a stub; use `press`.
+  Guitar (11), Rare Organs and Keys (47, source `bitwig_organs`, category Organ). Chromatic Percussion (2, source `bitwig_mallets`, category Mallets). The three single multisamples (Vocoder World, Analog Waves, Anti-Loops) are skipped on purpose. The `bitwig` source type in the Settings page is still a stub; use `press`.
   When a source is pointed AT a "Kits" folder, that folder counts as the Kits level. Known rough spot: some `essential-kits` machine folders
   become one kit when their sub-kits aren't named "...Kit".
 
