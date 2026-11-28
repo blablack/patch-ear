@@ -66,7 +66,10 @@ def embed_audio(paths: list[Path]) -> np.ndarray:
     import librosa
 
     model, proc, torch = _load()
-    waves = [librosa.load(str(p), sr=SR, mono=True, duration=SECONDS)[0] for p in paths]
+    from . import origin
+
+    # paths are catalogue paths (origins: NAS files, zip members); read each through the shared cache
+    waves = [librosa.load(str(origin.local(p)), sr=SR, mono=True, duration=SECONDS)[0] for p in paths]
     try:
         inputs = proc(audio=waves, sampling_rate=SR, return_tensors="pt")
     except TypeError:  # older transformers call it `audios`
@@ -90,7 +93,7 @@ def run(conn: sqlite3.Connection, category: str | None = None, limit: int | None
     q, args = "SELECT id, path FROM patches", ()
     if category:
         q, args = q + " WHERE category=?", (category,)
-    todo = [(i, p) for i, p in conn.execute(q, args) if have.get(i) != p and Path(p).is_file()]
+    todo = [(i, p) for i, p in conn.execute(q, args) if have.get(i) != p]  # unreadable ones are skipped (and logged) below
     if limit:
         todo = todo[:limit]
     log(f"{len(todo)} to embed")

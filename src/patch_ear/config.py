@@ -108,6 +108,10 @@ class SourceConfig:
     only_list: Path | None = None  # text file, one patch path per line; others are ignored
     exclude: list[str] = field(default_factory=list)  # folder names/paths (fnmatch, relative to `path`) to leave out: loops, FX, phrases...
     library: str = ""  # name shown as the preset's library; empty = the source folder's name
+    # A source that is a union of origins: subfolder name -> origin (a NAS folder, a zip, or a folder inside a zip).
+    # Its files are listed under `path` (then only a label: "/mounts/<name>" when the config gives none) as <path>/<name>/...,
+    # so ids stay "<source>:<name>/<rest>". See origin.py.
+    mounts: dict[str, Path] = field(default_factory=dict)
 
     @property
     def stype(self) -> SourceType:
@@ -160,15 +164,17 @@ def parse(raw: dict, base: Path) -> Config:
             stype = "oneshots"
         if stype not in TYPES_BY_ID:
             raise ValueError(f"source '{name}': unknown type '{stype}'")
-        if not str(s.get("path", "")).strip():
-            raise ValueError(f"source '{name}': path is required")
+        mounts = {str(k): Path(str(v)).expanduser() for k, v in (s.get("mounts") or {}).items()}
+        if not str(s.get("path", "")).strip() and not mounts:
+            raise ValueError(f"source '{name}': path (or mounts) is required")
         if not str(s.get("category", "")).strip() and not TYPES_BY_ID[stype].auto_category:
             raise ValueError(f"source '{name}': category is required")
         plugin = str(s.get("plugin", "")).strip()
         if TYPES_BY_ID[stype].plugin and not plugin:
             raise ValueError(f"source '{name}': a plugin path is required for type {stype}")
         sources.append(SourceConfig(
-            name=name, path=Path(s["path"]).expanduser(), category=str(s.get("category", "")).strip() or "auto", type=stype,
+            name=name, path=Path(str(s.get("path") or f"/mounts/{name}")).expanduser(), mounts=mounts,
+            category=str(s.get("category", "")).strip() or "auto", type=stype,
             ref_midi=int(s.get("ref_midi", 36)), plugin=Path(plugin).expanduser() if plugin else None,
             only_list=_rel(str(s.get("only_list", "")), base), library=str(s.get("library", "")).strip(),
             exclude=[str(x).strip() for x in s.get("exclude", []) if str(x).strip()],
@@ -199,9 +205,11 @@ def normalize_raw(raw: dict) -> dict:
         out["cache"] = {"dir": str(raw["cache"]["dir"]).strip()}
     for s in raw.get("source", []):
         stype = s.get("type") or _LEGACY_GROUP.get(s.get("group", ""), None) or "oneshots"
-        item = {"name": str(s["name"]).strip(), "type": stype, "path": str(s["path"]).strip(), "category": str(s.get("category", "")).strip()}
+        item = {"name": str(s["name"]).strip(), "type": stype, "path": str(s.get("path", "")).strip(), "category": str(s.get("category", "")).strip()}
         if not item["category"]:
             del item["category"]
+        if not item["path"]:
+            del item["path"]
         if TYPES_BY_ID.get(stype, SourceType("", "", "")).ref_midi:
             item["ref_midi"] = int(s.get("ref_midi", 36))
         if str(s.get("plugin", "")).strip():
@@ -212,6 +220,8 @@ def normalize_raw(raw: dict) -> dict:
             item["exclude"] = [str(x).strip() for x in s["exclude"] if str(x).strip()]
         if str(s.get("only_list", "")).strip():
             item["only_list"] = str(s["only_list"]).strip()
+        if s.get("mounts"):
+            item["mounts"] = {str(k): str(v).strip() for k, v in s["mounts"].items()}
         out["source"].append(item)
     return out
 
