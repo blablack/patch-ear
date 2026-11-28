@@ -1,7 +1,7 @@
 """Trained mood scores (Essentia) and perceptual timbre scores (AudioCommons timbral_models) for every catalogue sound.
 
 OFFLINE SIDECAR. Runs in its own Python 3.12 environment (essentia-tensorflow has no 3.14 wheels), NOT in the patch-ear
-project environment: `just sidecar-setup` builds it, `just descriptors` runs it. It only READS patches.path from the catalogue
+project environment: `just sidecar-setup` builds it, `just descriptors` runs it. It only READS patches.path (an origin, fetched through `patch-ear local`) from the catalogue
 and WRITES the `descriptors` table; the MCP server (3.14, read-only) just reads that table.
 
 Per sound (the catalogue's audition file, first ~20 s):
@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -101,6 +102,27 @@ class Models:
         return out
 
 
+class Localizer:
+    """A local file for each catalogue path. The catalogue holds ORIGINS (NAS files, members of zips on the NAS); the main
+    patch-ear environment fetches them through the shared patch-press cache (`patch-ear local`), which this Python 3.12
+    environment can't import. One long-lived process, one path per line each way."""
+
+    def __init__(self) -> None:
+        self.proc = subprocess.Popen(["uv", "run", "--extra", "clap", "--extra", "press", "patch-ear", "local"], cwd=Path(__file__).resolve().parent.parent,
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+
+    def __call__(self, path: str) -> str | None:
+        assert self.proc.stdin and self.proc.stdout
+        self.proc.stdin.write(path + "\n")
+        self.proc.stdin.flush()
+        return self.proc.stdout.readline().rstrip("\n") or None
+
+    def close(self) -> None:
+        if self.proc.stdin:
+            self.proc.stdin.close()
+        self.proc.wait()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--db", default=str(HOME / "catalogue.db"))
@@ -120,7 +142,7 @@ def main() -> None:
         q, args = q + " WHERE category=?", [a.category]
     rank = {c: k for k, c in enumerate(PRIORITY)}
     rows = sorted(conn.execute(q, args), key=lambda r: rank.get(r[2], len(PRIORITY)))
-    todo = [(i, p, c) for i, p, c in rows if have.get(i) != (p, VERSION) and Path(p).is_file() and (not a.ids or i in a.ids)]
+    todo = [(i, p, c) for i, p, c in rows if have.get(i) != (p, VERSION) and (not a.ids or i in a.ids)]
     if a.shard:
         k, n_sh = (int(x) for x in a.shard.split("/"))
         todo = todo[k::n_sh]
@@ -128,10 +150,14 @@ def main() -> None:
         todo = todo[: a.limit]
     print(f"{len(todo)} to analyse", flush=True)
     m = Models(mood=not a.no_mood, timbre=not a.no_timbre)
+    local = Localizer() if todo else None
     t0, failed = time.time(), 0
     for n, (i, p, c) in enumerate(todo, 1):
         try:
-            data = m.analyse(p, c)
+            f = local(p)
+            if f is None:
+                raise FileNotFoundError(f"could not fetch {p}")
+            data = m.analyse(f, c)
         except Exception as e:
             failed += 1
             print(f"  skipped {i}: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
@@ -142,6 +168,8 @@ def main() -> None:
             rate = n / (time.time() - t0)
             print(f"  {n}/{len(todo)}  {rate:.2f}/s  eta {int((len(todo) - n) / max(rate, 1e-9) / 60)} min", flush=True)
     conn.commit()
+    if local:
+        local.close()
     print(f"done: {len(todo) - failed} analysed, {failed} failed", flush=True)
 
 

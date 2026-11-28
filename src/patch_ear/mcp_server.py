@@ -10,6 +10,7 @@ from urllib.parse import urlencode, urlparse
 from mcp.server.mcpserver import MCPServer
 
 from . import catalogue, notes, query
+from . import config
 from .config import load_config
 
 mcp = MCPServer("patch-ear")
@@ -118,12 +119,46 @@ def compare_patches(patch_ids: list[str]) -> dict:
 UI_URL = os.environ.get("PATCH_EAR_UI_URL", "http://127.0.0.1:8765")
 
 
+def _ui_up(u) -> bool:
+    try:
+        with socket.create_connection((u.hostname, u.port or 80), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def _ensure_ui() -> tuple[bool, str | None]:
+    """Is the web UI reachable? If not, and it is a local address, start it detached (it outlives this MCP process;
+    it inherits PATCH_EAR_HOME / PATCH_EAR_CONFIG) and wait a few seconds for the port. Returns (running, note)."""
+    import subprocess
+    import time
+
+    u = urlparse(UI_URL)
+    if _ui_up(u):
+        return True, None
+    if u.hostname not in ("127.0.0.1", "localhost"):
+        return False, f"The patch-ear web UI at {UI_URL} is not reachable."
+    log = config.home() / "ui.log"
+    try:
+        with open(log, "ab") as out:
+            subprocess.Popen([sys.executable, "-c", "from patch_ear.cli import main; main()", "serve",
+                              "--host", u.hostname, "--port", str(u.port or 8765)],
+                             stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True)
+    except OSError as e:
+        return False, f"Could not start the web UI ({e}): run `just serve` in the patch-ear folder."
+    for _ in range(40):
+        time.sleep(0.25)
+        if _ui_up(u):
+            return True, "The web UI was not running; it was started automatically."
+    return False, f"Started the web UI but it did not come up; see {log}, or run `just serve` in the patch-ear folder."
+
+
 @mcp.tool()
 def listen_link(patch_ids: list[str], title: str = "") -> dict:
     """A link to a page where the user can LISTEN to a shortlist (1-40 patch ids): one player per sound with its name, library,
     labels and mood tags, plus "play all". Give it whenever you propose specific sounds, so the user can audition them before
-    deciding ("click to hear my proposal"). The page is served by the patch-ear web UI on the user's computer; if `ui_running`
-    is false, tell the user to start it (`just serve` in the patch-ear folder) and give the link anyway."""
+    deciding ("click to hear my proposal"). The page is served by the patch-ear web UI on the user's computer; it is started
+    automatically if needed; if `ui_running` is still false, tell the user to run `just serve` and give the link anyway."""
     if not 1 <= len(patch_ids) <= 40:
         raise ValueError("give between 1 and 40 patch ids")
     known = {r[0]: r[1] for r in _conn().execute("SELECT id, name FROM patches")}
@@ -131,15 +166,9 @@ def listen_link(patch_ids: list[str], title: str = "") -> dict:
     if missing:
         raise ValueError(f"unknown ids: {missing}")
     params = [("id", i) for i in patch_ids] + ([("title", title)] if title else [])
-    u = urlparse(UI_URL)
-    try:
-        with socket.create_connection((u.hostname, u.port or 80), timeout=0.5):
-            running = True
-    except OSError:
-        running = False
+    running, note = _ensure_ui()
     return {"url": f"{UI_URL.rstrip('/')}/listen?{urlencode(params)}", "ui_running": running,
-            "sounds": [known[i] for i in patch_ids],
-            "note": None if running else "The patch-ear web UI is not running: start it with `just serve` in the patch-ear folder."}
+            "sounds": [known[i] for i in patch_ids], "note": note}
 
 
 @mcp.tool()

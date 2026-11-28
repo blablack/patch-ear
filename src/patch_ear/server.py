@@ -3,6 +3,7 @@ filesystem listing and start jobs."""
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import re
 import threading
@@ -18,9 +19,9 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.routing import Route
 
-from . import catalogue, query
+from . import catalogue, origin, query
 from .analyze import _MIDI_ANYWHERE, _NOTE_SUFFIX, analyze
-from .config import SOURCE_TYPES, default_config, load_raw, parse, save_raw
+from .config import SOURCE_TYPES, default_config, load_config, load_raw, parse, save_raw
 
 MATCH_RMS_DB = -20.0  # audition target: average level, in dBFS
 MATCH_PEAK_DB = -1.0  # never boost past this peak (no clipping)
@@ -172,6 +173,8 @@ def suggest_type(root: Path) -> dict:
 def create_app(config_path: str | Path | None = None) -> Starlette:
     cfg_path = Path(config_path or default_config()).expanduser().resolve()
     job = Job()
+    if cfg_path.exists():
+        load_config(cfg_path)  # applies [cache] dir (PATCH_PRESS_CACHE_DIR), which playback fetches through
 
     def cfg():
         return parse(load_raw(cfg_path), cfg_path.parent)
@@ -281,15 +284,21 @@ def create_app(config_path: str | Path | None = None) -> Starlette:
     async def audio(request: Request):
         conn = db()
         row = conn.execute("SELECT path FROM patches WHERE id=?", (request.query_params.get("id", ""),)).fetchone() if conn else None
-        if not row or not Path(row["path"]).is_file():
+        if not row:
+            return err("not found", 404)
+        try:  # the catalogue holds the origin (NAS file / zip member); playing it fetches it through the shared cache
+            path = await asyncio.to_thread(origin.local, row["path"])
+        except (OSError, KeyError, RuntimeError):
+            return err("not found", 404)
+        if not path.is_file():
             return err("not found", 404)
         if request.query_params.get("match") == "1":  # audition at a matched loudness; the file and its measurements are untouched
             try:
-                return Response(_matched_wav(row["path"], Path(row["path"]).stat().st_mtime_ns), media_type="audio/wav",
+                return Response(_matched_wav(str(path), path.stat().st_mtime_ns), media_type="audio/wav",
                                 headers={"Cache-Control": "no-store"})
             except Exception:  # unreadable by soundfile: fall back to the original
                 pass
-        return FileResponse(row["path"], media_type="audio/wav")
+        return FileResponse(path, media_type="audio/wav")
 
     async def listen(request: Request):
         """A small page that plays a shortlist: /listen?id=<patch id>&id=<patch id>...&title=... (what the MCP `listen_link` returns)."""

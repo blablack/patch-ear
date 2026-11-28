@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import json
 
 from . import catalogue, query
@@ -67,6 +68,9 @@ def main() -> None:
     pr = sub.add_parser("probe", help="(experimental) how well do CLAP text axes track the validated features?")
     pr.add_argument("category", nargs="?", default=None)
 
+    sub.add_parser("local", help="read catalogue paths (origins) on stdin, print a local copy of each fetched through the shared "
+                                 "cache, one per line (empty line if it can't be fetched); used by the descriptors sidecar")
+
     w = sub.add_parser("serve", help="web UI: configure sources/plugins, run analysis with progress, browse the catalogue")
     w.add_argument("--host", default="127.0.0.1")
     w.add_argument("--port", type=int, default=8765)
@@ -82,6 +86,16 @@ def main() -> None:
         uvicorn.run(create_app(args.config), host=args.host, port=args.port, log_level="warning")
         return
     cfg = load_config(args.config)
+    if args.cmd == "local":
+        from . import origin
+
+        for line in sys.stdin:
+            try:
+                print(origin.local(line.rstrip("\n")), flush=True)
+            except Exception as e:  # noqa: BLE001 -- one unreadable origin must not stop the batch
+                print(f"local: {line.strip()}: {type(e).__name__}: {e}", file=sys.stderr)
+                print("", flush=True)
+        return
     if args.cmd == "analyze":
         _run_analyze(cfg, args.source, args.force, args.limit)
     elif args.cmd == "moods":

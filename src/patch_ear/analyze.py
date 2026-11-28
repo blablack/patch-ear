@@ -1,5 +1,9 @@
 """Offline batch analysis: walk configured sources, measure, write the catalogue. Incremental by mtime+size+name.
 
+Sources name their ORIGINS (NAS folders, zips, folders inside zips, or a union of those via mounts; see origin.py).
+Walking and change detection read metadata only; a sound's audio is fetched through the shared patch-press cache
+only when it is measured, and the catalogue stores the origin, not the local copy.
+
 Progress is reported through an `on_event(kind, **info)` callback so the CLI (tqdm) and the web UI share one code path.
 """
 
@@ -15,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from . import catalogue
+from . import catalogue, origin
 from .config import Config, SourceConfig
 from .features import EXTRA, FEATURES, extract, load, measured_midi
 from .items import AVERAGE, NOTES, REPRESENTATIVE, SINGLE, Item, Measured, spread
@@ -36,8 +40,10 @@ def _excluded(rel: Path, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(x, pat.lower()) for pat in patterns for x in (*heads, *(p.lower() for p in parts), *names))
 
 
-def _wavs(root: Path, exclude: list[str] | None = None) -> list[Path]:
-    return sorted(p for p in root.rglob("*") if p.suffix.lower() == ".wav" and not p.name.startswith(".")
+def _wavs(src: SourceConfig) -> list[Path]:
+    """The source's WAVs as paths under src.path (origin.list_files: a folder walk or a zip listing, no audio read)."""
+    root, exclude = src.path, src.exclude
+    return sorted(p for p in origin.list_files(src) if p.suffix.lower() == ".wav" and not p.name.startswith(".")
                   and not (exclude and _excluded(p.relative_to(root), exclude)))
 
 
@@ -151,7 +157,7 @@ def _library_items(src: SourceConfig) -> list[Item]:
     kits: dict[Path, list[Path]] = {}
     folders: dict[Path, list[Path]] = {}
     base = root.parent if _KIT_DIR.search(root.name) else root  # a source pointed AT the "Kits" folder
-    for p in _wavs(root, src.exclude):
+    for p in _wavs(src):
         parts = p.relative_to(base).parent.parts
         i = next((i for i, part in enumerate(parts) if _KIT_DIR.search(part)), None)
         if i is not None:
@@ -218,7 +224,7 @@ def _machine_items(src: SourceConfig) -> list[Item]:
     machine = src.library or root.name
     prefix = "" if machine.startswith(("essential", "vinyl")) else re.sub(r"[_-]+", " ", machine).strip().title().replace(" From Mars", "")
     kits: dict[Path, list[Path]] = {}
-    for p in _wavs(root, src.exclude):
+    for p in _wavs(src):
         kits.setdefault(p.parent, []).append(p)
     out: list[Item] = []
     for k, files in sorted(kits.items()):
@@ -258,7 +264,7 @@ def _loop_role(rel: Path, library: str = "") -> str:
 
 def _loop_items(src: SourceConfig) -> list[Item]:
     out = []
-    files = _wavs(src.path, src.exclude)
+    files = _wavs(src)
     stems: dict[str, int] = {}
     for p in files:
         stems[p.stem] = stems.get(p.stem, 0) + 1
@@ -282,7 +288,7 @@ def items_for(src: SourceConfig) -> list[Item]:
         return _machine_items(src)
     if src.type == "loops":
         return _loop_items(src)
-    root, wavs = src.path, _wavs(src.path, src.exclude)
+    root, wavs = src.path, _wavs(src)
     rel = lambda p: p.relative_to(root)  # noqa: E731
 
     cat_of = lambda p: (src.category if src.category != "auto" else _guess_category(rel(p).parent.parts, "Synth")) if src.type == "oneshots" else None  # noqa: E731
@@ -344,17 +350,18 @@ def plan_source(src: SourceConfig) -> tuple[list[Item], list[str]]:
 def skip_reason(src: SourceConfig) -> str | None:
     if not src.stype.analyzable:
         return f"type '{src.type}' cannot be analysed yet"
-    if not src.path.is_dir():
-        return f"path not found: {src.path}"
-    return None
+    if src.type == "press":
+        return None if src.path.is_dir() else f"path not found: {src.path}"
+    return origin.source_missing(src)
 
 
 def measure(files: list[Path], max_seconds: float) -> dict[str, float]:
-    """Features of one file, or the mean over several (kits). Files that fail to load are skipped if others succeed."""
+    """Features of one origin file, or the mean over several (kits), each read through the cache (origin.local).
+    Files that fail to load are skipped if others succeed."""
     results, last_err = [], None
     for f in files:
         try:
-            chans, sr, dur = load(f, max_seconds)
+            chans, sr, dur = load(origin.local(f), max_seconds)
             results.append(extract(chans, sr, dur))
         except Exception as e:
             last_err = e
@@ -364,8 +371,16 @@ def measure(files: list[Path], max_seconds: float) -> dict[str, float]:
 
 
 def _signature(item: Item) -> tuple[float, int, str]:
-    stats = [f.stat() for f in (item.files or item.sig_files)]
-    return (max(s.st_mtime for s in stats), sum(s.st_size for s in stats), item.name)
+    """Change detection from metadata only (item.files must already be origins, see _with_origins)."""
+    stats = [origin.stat_sig(f) for f in (item.files or item.sig_files)]
+    return (max(m for m, _ in stats), sum(size for _, size in stats), item.name)
+
+
+def _with_origins(src: SourceConfig, item: Item) -> Item:
+    """The item with its files mapped from src.path back to their origins (only differs for mounted sources)."""
+    if src.mounts and item.files:
+        item.files = [origin.resolve(src, f) for f in item.files]
+    return item
 
 
 def _preview(cfg: Config, item: Item, m: Measured) -> Path:
@@ -382,7 +397,7 @@ def _kit_preview(cfg: Config, item: Item, max_seconds: float) -> Path:
     parts, sr0 = [], 0
     for f in item.files:
         try:
-            chans, sr, _ = load(f, min(max_seconds, 1.0))
+            chans, sr, _ = load(origin.local(f), min(max_seconds, 1.0))
         except Exception:
             continue
         sr0 = sr0 or sr
@@ -429,6 +444,7 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
         emit("source_start", source=src.name, total=len(items))
         counts = {"analysed": 0, "unchanged": 0, "failed": 0}
         for item in items:
+            item = _with_origins(src, item)
             if cancelled():
                 conn.commit()
                 conn.close()
@@ -466,4 +482,18 @@ def analyze(cfg: Config, only: str | None = None, force: bool = False, on_event:
         conn.commit()
         emit("source_end", source=src.name, removed=removed, **counts)
     conn.close()
+    _trim_cache(emit)
     emit("finished")
+
+
+def _trim_cache(emit: Event) -> None:
+    """Apply the shared cache's size cap once the run is over (fetches made here count as uses)."""
+    try:
+        from patch_press.cache import evict
+    except ImportError:
+        return
+    try:
+        for line in evict.trim().lines():
+            emit("source_note", source="cache", note=line.strip())
+    except Exception as e:  # never fail an analysis over housekeeping
+        emit("source_note", source="cache", note=f"trim skipped: {type(e).__name__}: {e}")
