@@ -28,7 +28,7 @@ Event = Callable[..., None]
 
 # "<patch>-<midi>_<note>" e.g. carnage_amp-048_c2 / hollow_tube-a-036_c1
 _NOTE_SUFFIX = re.compile(r"^(?P<base>.+?)-(?P<midi>\d{2,3})_[a-g]#?-?\d+$", re.IGNORECASE)
-_MIDI_ANYWHERE = re.compile(r"(?<![A-Za-z0-9])(\d{2,3})_[a-g]#?-?\d+(?!\d)", re.IGNORECASE)  # not "SH101_E6"
+_MIDI_ANYWHERE = re.compile(r"(?<![A-Za-z0-9])(\d{2,3})(?:_|--)[a-g]#?-?\d+(?!\d)", re.IGNORECASE)  # "048_c2", TAL "-045--a1"; not "SH101_E6"
 
 
 def _excluded(rel: Path, patterns: list[str]) -> bool:
@@ -141,7 +141,9 @@ def _is_multisample(files: list[Path]) -> bool:
 
 
 def _guess_category(parts: tuple[str, ...], fallback: str) -> str:
-    for word in re.split(r"[^a-z]+", " ".join(parts).lower()):
+    # "ARP" + a model is the synth maker, not an arpeggio: a TAL "ARP2600 bass" is a Bass. A plain "ARP"/"ARPS" folder stays Arp.
+    text = re.sub(r"\bARP(?=\s*(?:\d|Odyssey|Pro\b|String|Solina|Axxe|Omni|Quadra|Avatar|Explorer))", " ", " ".join(parts))
+    for word in re.split(r"[^a-z]+", text.lower()):
         if word in _CATEGORY_WORDS:
             return _CATEGORY_WORDS[word]
     return fallback
